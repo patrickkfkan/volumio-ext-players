@@ -11,7 +11,12 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
 
   abstract getStatus(): S | null;
 
-  abstract play(track: TrackInfo): Promise<void>;
+  /**
+   * 
+   * @param track 
+   * @param start Position from which to start playback (seconds)
+   */
+  abstract play(track: TrackInfo, start?: number): Promise<void>;
 
   abstract pause(): Promise<void>;
 

@@ -53,17 +53,17 @@ export class MPVControl extends PlayerControl<MPVStatus> {
     this.#statusProvider.on('status', listener);
   }
 
-  async doPlayFile(uri: string) {
+  async doPlayFile(uri: string, start: number) {
     return await new Promise<void>((resolve, reject) => {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing'
+        (status) => status.state === 'playing' && (start === 0 || status.time >= start)
       );
       // Send unpause command right after loadfile.
       // If we don't do this and we sent a pause command previously, 
       // the loaded file will remain in paused state.
-      this.#command.send('loadfile', uri, 'replace')
+      this.#command.send('loadfile', uri, 'replace', 0, `start=${start}`)
         .then(() => this.#command.send('set_property', 'pause', false))
         .catch((error: unknown) => reject(ensureError(error)));
     });

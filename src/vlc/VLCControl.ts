@@ -54,15 +54,18 @@ export class VLCControl extends PlayerControl<VLCStatus> {
     this.#statusProvider.on('status', listener);
   }
 
-  async doPlayFile(uri: string) {
+  async doPlayFile(uri: string, start: number) {
     this.#cancelStatusEmitDuringSeek();
     return await new Promise<void>((resolve, reject) => {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing'
+        (status) => status.state === 'playing' && (start === 0 || status.time >= start)
       );
+      // VLC doesn't have proper support for starting playback at a specific position.
+      // Best we could do is play then seek.
       this.#client.playFile(uri)
+        .then(() => start > 0 ? this.seek(start) : Promise.resolve())
         .catch((error: unknown) => reject(ensureError(error)));
     });
   }

@@ -19,7 +19,7 @@ export abstract class PlayerControl<S extends PlayerStatus> {
     this.#statusProvider = options.statusProvider;
   }
   
-  abstract doPlayFile(uri: string): Promise<void>;
+  abstract doPlayFile(uri: string, start: number): Promise<void>;
   abstract doPlay(): Promise<void>;
   abstract doPause(): Promise<void>;
   abstract doStop(): Promise<void>;
@@ -31,9 +31,9 @@ export abstract class PlayerControl<S extends PlayerStatus> {
     return this.#statusProvider.getStatus().state;
   }
 
-  async playFile(uri: string) {
+  async playFile(uri: string, start = 0) {
     this.clearPreviousTimer();
-    return await this.doPlayFile(uri);
+    return await this.doPlayFile(uri, start);
   }
 
   async play() {

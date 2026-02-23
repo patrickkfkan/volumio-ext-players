@@ -47,7 +47,13 @@ export class MPVCommandSender {
     }
   }
 
-  send(command: 'loadfile', location: string, loadType: 'replace' | 'append' | 'append-play' | 'insert-next'): Promise<void>;
+  send(
+    command: 'loadfile',
+    location: string,
+    loadType: 'replace' | 'append' | 'append-play' | 'insert-next',
+    index: number,
+    opts: string
+  ): Promise<void>;
   send(command: 'stop'): Promise<void>;
   send(command: 'seek', position: number, mode: MPVSeekMode): Promise<void>;
   send(command: 'observe_property', susbcriptionId: number, property: ObservableProperty): Promise<void>;

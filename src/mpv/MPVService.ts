@@ -434,10 +434,10 @@ export class MPVService extends Service<MPVStatus> {
     return this.#statusProvider.getStatus();
   }
 
-  async play(track: TrackInfo) {
+  async play(track: TrackInfo, start = 0) {
     const { control, manager } = this.#assertReady();
     await manager.prepareForPlayback(track);
-    return await control.playFile(track.streamUrl);
+    return await control.playFile(track.streamUrl, start);
   }
 
   pause() {

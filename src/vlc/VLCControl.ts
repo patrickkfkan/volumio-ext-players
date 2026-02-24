@@ -37,6 +37,7 @@ export class VLCControl extends PlayerControl<VLCStatus> {
     resolve: () => void,
     reject: (err: Error) => void,
     condition: (status: VLCStatus) => boolean,
+    cmd?: string,
     timeout = 30000
   ) {
     const listener = (status: VLCStatus) => {
@@ -48,7 +49,7 @@ export class VLCControl extends PlayerControl<VLCStatus> {
     };
     const timer = setTimeout(() => {
       this.#statusProvider.off('status', listener);
-      reject(Error('Operation timeout'));
+      reject(Error(`Operation timeout${cmd ? `: ${cmd}` : ''}`));
     }, timeout);
 
     this.#statusProvider.on('status', listener);
@@ -60,7 +61,8 @@ export class VLCControl extends PlayerControl<VLCStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing' && (start === 0 || status.time >= start)
+        (status) => status.state === 'playing' && (start === 0 || status.time >= start),
+        `playFile "${uri}"; start=${start}`
       );
       // VLC doesn't have proper support for starting playback at a specific position.
       // Best we could do is play then seek.
@@ -76,7 +78,8 @@ export class VLCControl extends PlayerControl<VLCStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing'
+        (status) => status.state === 'playing',
+        'play'
       );
       this.#client.play()
         .catch((error: unknown) => reject(ensureError(error)));
@@ -89,7 +92,8 @@ export class VLCControl extends PlayerControl<VLCStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'paused'
+        (status) => status.state === 'paused',
+        'pause'
       );
       this.#client.pause()
         .catch((error: unknown) => reject(ensureError(error)));
@@ -102,7 +106,8 @@ export class VLCControl extends PlayerControl<VLCStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'stopped'
+        (status) => status.state === 'stopped',
+        'stop'
       );
       this.#client.stop()
         .catch((error: unknown) => reject(ensureError(error)));

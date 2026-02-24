@@ -36,6 +36,7 @@ export class MPVControl extends PlayerControl<MPVStatus> {
     resolve: () => void,
     reject: (err: Error) => void,
     condition: (status: MPVStatus) => boolean,
+    cmd?: string,
     timeout = 30000
   ) {
     const listener = (status: MPVStatus) => {
@@ -47,7 +48,7 @@ export class MPVControl extends PlayerControl<MPVStatus> {
     };
     const timer = setTimeout(() => {
       this.#statusProvider.off('status', listener);
-      reject(Error('Operation timeout'));
+      reject(Error(`Operation timeout${cmd ? `: ${cmd}` : ''}`));
     }, timeout);
 
     this.#statusProvider.on('status', listener);
@@ -58,7 +59,8 @@ export class MPVControl extends PlayerControl<MPVStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing' && (start === 0 || status.time >= start)
+        (status) => status.state === 'playing' && (start === 0 || status.time >= start),
+        `playFile "${uri}"; start=${start}`
       );
       // Send unpause command right after loadfile.
       // If we don't do this and we sent a pause command previously, 
@@ -74,7 +76,8 @@ export class MPVControl extends PlayerControl<MPVStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing'
+        (status) => status.state === 'playing',
+        `play`
       );
       this.#command.send('set_property', 'pause', false)
         .catch((error: unknown) => reject(ensureError(error)));
@@ -86,7 +89,8 @@ export class MPVControl extends PlayerControl<MPVStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'paused'
+        (status) => status.state === 'paused',
+        'pause'
       );
       this.#command.send('set_property', 'pause', true)
         .catch((error: unknown) => reject(ensureError(error)));
@@ -98,7 +102,8 @@ export class MPVControl extends PlayerControl<MPVStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'stopped'
+        (status) => status.state === 'stopped',
+        'stop'
       );
       this.#command.send('stop')
         .catch((error: unknown) => reject(ensureError(error)));

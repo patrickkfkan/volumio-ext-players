@@ -8,7 +8,7 @@ import { Socket } from "net";
 import { MPVControl } from "./MPVControl";
 import { MPVStatusProvider, type MPVStatus } from "./MPVStatusProvider";
 import { MPVCommandSender } from "./CommandSender";
-import { validateVolumioContext } from "../common/VolumioContext";
+import { validateVolumioContext, VolumioContext } from "../common/VolumioContext";
 import { type ServiceContext, type Logger } from "../common/ServiceContext";
 import { type TrackInfo, VolumioStateManager } from "../common/VolumioStateManager";
 import { MPVHelper } from "./MPVHelper";
@@ -26,6 +26,7 @@ export type UnvalidatedMPVServiceContext = Omit<MPVServiceContext, 'volumio'> & 
     commandRouter: unknown;
     statemachine: unknown;
     mpdPlugin: unknown;
+    transformStateBeforePush?: VolumioContext['transformStateBeforePush'];
   }
 };
 

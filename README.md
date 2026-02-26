@@ -54,6 +54,12 @@ const volumioCtx = {
   commandRouter: sc.volumioCoreCommand,
   mpdPlugin: sc.getMpdPlugin(),
   statemachine: sc.getStateMachine()
+  transformStateBeforePush: (state) => { // Optional
+    // Modify state
+    const transformedState = ...;
+    // Volumio gets the transformed state
+    return transformedState;
+  }
 };
 
 // Start VLC

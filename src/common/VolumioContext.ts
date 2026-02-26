@@ -44,6 +44,7 @@ export interface VolumioContext {
   commandRouter: CommandRouter;
   statemachine: StateMachine;
   mpdPlugin: MPDPlugin;
+  transformStateBeforePush?: (state: VolumioState) => VolumioState;
 }
 
 export function validateVolumioContext(value: any): value is VolumioContext {

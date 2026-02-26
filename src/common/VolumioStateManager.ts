@@ -156,7 +156,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
       return;
     }
     const sm = this.#context.volumio.statemachine;
-    const state: VolumioState = {
+    let state: VolumioState = {
       ...(observedState || this.getObservedStateFromPlayerStatus(this.#statusProvider.getStatus())),
       service: this.#context.serviceName,
       seek: this.#statusProvider.getStatus().time * 1000,
@@ -169,6 +169,10 @@ export class VolumioStateManager<S extends PlayerStatus> {
       mute: sm.currentMute,
       disableVolumeControl: sm.currentDisableVolumeControl
     };
+
+    if (this.#context.volumio.transformStateBeforePush) {
+      state = this.#context.volumio.transformStateBeforePush(state);
+    }
 
     this.#logger.info(`Push Volumio state: ${JSON.stringify(state)}`);
     this.#context.volumio.commandRouter.servicePushState(state, this.#context.serviceName);

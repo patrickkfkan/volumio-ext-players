@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "child_process";
+import { type ChildProcess, execSync, spawn } from "child_process";
 import { randomUUID } from "crypto";
 import { EOL } from "os";
 import pidtree from 'pidtree';
@@ -8,7 +8,7 @@ import { Socket } from "net";
 import { MPVControl } from "./MPVControl";
 import { MPVStatusProvider, type MPVStatus } from "./MPVStatusProvider";
 import { MPVCommandSender } from "./CommandSender";
-import { validateVolumioContext, VolumioContext } from "../common/VolumioContext";
+import { validateVolumioContext, type VolumioContext } from "../common/VolumioContext";
 import { type ServiceContext, type Logger } from "../common/ServiceContext";
 import { type TrackInfo, VolumioStateManager } from "../common/VolumioStateManager";
 import { MPVHelper } from "./MPVHelper";
@@ -87,7 +87,27 @@ export class MPVService extends Service<MPVStatus> {
     }
   }
 
+  #getMpvVersion() {
+    try {
+      const output = execSync('mpv --version', { encoding: 'utf8' });   
+      const versionLine = output.split('\n')[0];
+      const versionMatch = versionLine.match(/mpv\s+v?([0-9.]+)/);
+      if (versionMatch && versionMatch[1]) {
+        this.#logger.info(`mpv version: ${versionMatch[1]}`);
+        return versionMatch[1];
+      }
+      else {
+        throw Error('No version found in output of "mpv --version"');
+      }
+    }
+    catch (error: unknown) {
+      this.#logger.error(`Failed to get mpv version: ${getErrorMessage(error)}`);
+      return null;
+    }
+  }
+
   start() {
+    const mpvVersion = this.#getMpvVersion();
     return new Promise<void>((resolve, reject) => {
       this.#socketPath = path.resolve('/tmp', `volumio_mpv_socket_${randomUUID()}`);
       const sArgs = [
@@ -147,9 +167,11 @@ export class MPVService extends Service<MPVStatus> {
           logger: this.#logger
         });
         this.#control = new MPVControl({
+          mpvVersion,
           context: this.#context,
           statusProvider: this.#statusProvider,
-          commandSender: this.#command
+          commandSender: this.#command,
+          logger: this.#logger
         });
         this.#manager = new VolumioStateManager({
           context: this.#context,

@@ -1,13 +1,17 @@
+import semver from 'semver';
 import { type MPVStatusProvider, type MPVStatus } from "./MPVStatusProvider";
 import { type MPVServiceContext } from "./MPVService";
 import { PlayerControl } from "../common/PlayerControl";
 import { type MPVCommandSender } from "./CommandSender";
 import { ensureError } from "../common/Util";
+import { type Logger } from "../common/ServiceContext";
 
 export interface MPVControlOptions {
+  mpvVersion: string | null;
   context: MPVServiceContext;
   statusProvider: MPVStatusProvider;
   commandSender: MPVCommandSender;
+  logger: Logger;
 }
 
 export type MPVSeekMode =
@@ -22,6 +26,7 @@ export type MPVSeekMode =
 export class MPVControl extends PlayerControl<MPVStatus> {
   #statusProvider: MPVStatusProvider;
   #command: MPVCommandSender;
+  #loadFileRequiresIndexArg: boolean = false;
 
   constructor(options: MPVControlOptions) {
     super({
@@ -30,6 +35,12 @@ export class MPVControl extends PlayerControl<MPVStatus> {
     });
     this.#statusProvider = options.statusProvider;
     this.#command = options.commandSender;
+    if (options.mpvVersion) {
+      this.#loadFileRequiresIndexArg = semver.satisfies(options.mpvVersion, '>=0.38.0');
+    }
+    else {
+      options.logger.warn(`No mpv version available - assume loadFileCmdRequiresIndexArg is "${this.#loadFileRequiresIndexArg}"`);
+    }
   }
 
   #resolveOnStatus(
@@ -62,11 +73,13 @@ export class MPVControl extends PlayerControl<MPVStatus> {
         (status) => status.state === 'playing' && (start === 0 || status.time >= start),
         `playFile "${uri}"; start=${start}`
       );
+      const cmd = this.#loadFileRequiresIndexArg ?
+        this.#command.send('loadfile', uri, 'replace', 0, `start=${start}`)
+        : this.#command.send('loadfile', uri, 'replace', `start=${start}`)
       // Send unpause command right after loadfile.
       // If we don't do this and we sent a pause command previously, 
       // the loaded file will remain in paused state.
-      this.#command.send('loadfile', uri, 'replace', 0, `start=${start}`)
-        .then(() => this.#command.send('set_property', 'pause', false))
+      cmd.then(() => this.#command.send('set_property', 'pause', false))
         .catch((error: unknown) => reject(ensureError(error)));
     });
   }

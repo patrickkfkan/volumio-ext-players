@@ -51,6 +51,13 @@ export class MPVCommandSender {
     command: 'loadfile',
     location: string,
     loadType: 'replace' | 'append' | 'append-play' | 'insert-next',
+    opts: string
+  ): Promise<void>;
+  // mpv >= 0.38.0 requires "index" arg
+  send(
+    command: 'loadfile',
+    location: string,
+    loadType: 'replace' | 'append' | 'append-play' | 'insert-next',
     index: number,
     opts: string
   ): Promise<void>;

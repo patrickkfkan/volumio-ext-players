@@ -502,4 +502,11 @@ export class MPVService extends Service<MPVStatus> {
     const { control } = this.#assertReady();
     return control.seek(position);
   }
+
+  pushState() {
+    if (!this.#statusProvider) {
+      return;
+    }
+    this.#statusProvider.emit('status', this.#statusProvider.getStatus());
+  }
 }

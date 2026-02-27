@@ -32,6 +32,8 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
 
   abstract setRepeat(value: boolean, repeatSingle: boolean): Promise<void>;
 
+  abstract pushState(): void;
+
   /**
    * 
    * @param position Position to seek to in seconds

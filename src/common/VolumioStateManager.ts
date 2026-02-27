@@ -75,6 +75,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
   #statusListener: (status: S) => void;
   #timeListener: (time: number) => void;
   #unsetVolatileOnStop: VolumioContext['unsetVolatileOnStop'];
+  #lastPushedState: VolumioState | null = null;
 
   constructor(options: VolumioStateManagerOptions<S>) {
     this.#context = options.context;
@@ -95,6 +96,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
     await this.#stopCurrentServiceAndSetVolatile();
     await this.#setRepeatSingle();
 
+    this.#lastPushedState = null;
     this.#pushState({
       ...EMPTY_STATE,
       ..._.omit(trackInfo, ['streamUrl']),
@@ -166,9 +168,12 @@ export class VolumioStateManager<S extends PlayerStatus> {
     if (!this.#context.volumio) {
       return;
     }
+    if (!observedState) {
+      observedState = this.getObservedStateFromPlayerStatus(this.#statusProvider.getStatus());
+    }     
     const sm = this.#context.volumio.statemachine;
     let state: VolumioState = {
-      ...(observedState || this.getObservedStateFromPlayerStatus(this.#statusProvider.getStatus())),
+      ...observedState,
       service: this.#context.serviceName,
       seek: this.#statusProvider.getStatus().time * 1000,
       stream: false,
@@ -185,8 +190,11 @@ export class VolumioStateManager<S extends PlayerStatus> {
       state = this.#context.volumio.transformStateBeforePush(state);
     }
 
-    this.#logger.info(`Push Volumio state: ${JSON.stringify(state)}`);
-    this.#context.volumio.commandRouter.servicePushState(state, this.#context.serviceName);
+    if (!_.isEqual(state, this.#lastPushedState)) {
+      this.#lastPushedState = _.clone(state);
+      this.#logger.info(`Push Volumio state: ${JSON.stringify(state)}`);
+      this.#context.volumio.commandRouter.servicePushState(state, this.#context.serviceName);
+    }
   }
 
   dispose() {
@@ -250,6 +258,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
     }
     this.#logger.info('Volatile state unset, stopping playback (if any)...');
     this.#pushState({ ...EMPTY_STATE, });
+    this.#lastPushedState = null
     this.#context.volumio.mpdPlugin.ignoreUpdate(false);
 
     /**

@@ -1,4 +1,4 @@
-import { getErrorMessage } from "../common/Util";
+import { getErrorMessage } from '../common/Util';
 
 export class MPVHelper {
   static parseJsonIPCData(data: string) {
@@ -12,8 +12,7 @@ export class MPVHelper {
           if (json && typeof json === 'object') {
             parsed.push(json);
           }
-        }
-        catch (error) {
+        } catch (error) {
           errors.push(`${getErrorMessage(error)}: ${trimmed}`);
         }
       }

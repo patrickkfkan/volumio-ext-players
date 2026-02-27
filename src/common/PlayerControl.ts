@@ -1,6 +1,9 @@
-import { type PlayerStatus, type PlayerStatusProvider as PlayerStatusProvider } from "./PlayerStatusProvider";
-import { kewToJSPromise } from "./Util";
-import { type VolumioContext } from "./VolumioContext";
+import {
+  type PlayerStatus,
+  type PlayerStatusProvider as PlayerStatusProvider
+} from './PlayerStatusProvider';
+import { kewToJSPromise } from './Util';
+import { type VolumioContext } from './VolumioContext';
 
 export interface PlayerControlOptions<S extends PlayerStatus> {
   volumio?: VolumioContext;
@@ -8,7 +11,6 @@ export interface PlayerControlOptions<S extends PlayerStatus> {
 }
 
 export abstract class PlayerControl<S extends PlayerStatus> {
-
   #volumio?: VolumioContext;
   #statusProvider: PlayerStatusProvider<S>;
   #previousTimer: NodeJS.Timeout | null = null;
@@ -18,7 +20,7 @@ export abstract class PlayerControl<S extends PlayerStatus> {
     this.#volumio = options.volumio;
     this.#statusProvider = options.statusProvider;
   }
-  
+
   abstract doPlayFile(uri: string, start: number): Promise<void>;
   abstract doPlay(): Promise<void>;
   abstract doPause(): Promise<void>;
@@ -100,7 +102,10 @@ export abstract class PlayerControl<S extends PlayerStatus> {
   }
 
   async previous() {
-    const op = !this.#previousTimer && this.#getPlayerState() !== 'stopped' ? 'rewind' : 'previousTrack';
+    const op =
+      !this.#previousTimer && this.#getPlayerState() !== 'stopped' ?
+        'rewind'
+      : 'previousTrack';
     this.clearPreviousTimer();
     if (!this.#volumio) {
       return;
@@ -118,8 +123,7 @@ export abstract class PlayerControl<S extends PlayerStatus> {
         await this.stop();
         if (sm.currentRandom === true) {
           sm.currentPosition = sm.randomQueue.prev();
-        }
-        else if (sm.currentPosition > 0) {
+        } else if (sm.currentPosition > 0) {
           sm.currentPosition--;
         }
         await kewToJSPromise(sm.play());

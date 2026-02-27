@@ -1,4 +1,4 @@
-import EventEmitter from "events";
+import EventEmitter from 'events';
 
 export interface PlayerStatus {
   title?: string;
@@ -16,10 +16,11 @@ export interface PlayerStatus {
   state: 'playing' | 'paused' | 'stopped';
 }
 
-export abstract class PlayerStatusProvider<S extends PlayerStatus> extends EventEmitter {
-
+export abstract class PlayerStatusProvider<
+  S extends PlayerStatus
+> extends EventEmitter {
   abstract getStatus(): S;
-  
+
   emit(eventName: 'time', time: number): boolean;
   emit(eventName: 'status', status: S): boolean;
   emit<K>(eventName: string | symbol, ...args: any[]): boolean {
@@ -34,14 +35,16 @@ export abstract class PlayerStatusProvider<S extends PlayerStatus> extends Event
 
   once(eventName: 'time', listener: (time: number) => void): this;
   once(eventName: 'status', listener: (status: S) => void): this;
-  once<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
+  once<K>(
+    eventName: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
     return super.once(eventName, listener);
   }
-
 
   off(eventName: 'time', listener: (time: number) => void): this;
   off(eventName: 'status', listener: (status: S) => void): this;
   off<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
-      return super.off(eventName, listener);
+    return super.off(eventName, listener);
   }
 }

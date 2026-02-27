@@ -1,7 +1,7 @@
-import { PlayerControl } from "../common/PlayerControl";
-import { ensureError } from "../common/Util";
-import { type VLCServiceContext } from "./VLCService";
-import { type VLCStatus, type VLCStatusProvider } from "./VLCStatusProvider";
+import { PlayerControl } from '../common/PlayerControl';
+import { ensureError } from '../common/Util';
+import { type VLCServiceContext } from './VLCService';
+import { type VLCStatus, type VLCStatusProvider } from './VLCStatusProvider';
 import type * as VLC from 'vlc-client';
 
 export interface VLCControlOptions {
@@ -11,13 +11,12 @@ export interface VLCControlOptions {
 }
 
 export type MPVSeekMode =
-  | "absolute"
-  | "relative"
-  | "absolute+exact"
-  | "relative+exact"
-  | "keyframe"
-  | "percent";
-
+  | 'absolute'
+  | 'relative'
+  | 'absolute+exact'
+  | 'relative+exact'
+  | 'keyframe'
+  | 'percent';
 
 export class VLCControl extends PlayerControl<VLCStatus> {
   #statusProvider: VLCStatusProvider;
@@ -61,13 +60,15 @@ export class VLCControl extends PlayerControl<VLCStatus> {
       this.#resolveOnStatus(
         resolve,
         reject,
-        (status) => status.state === 'playing' && (start === 0 || status.time >= start),
+        (status) =>
+          status.state === 'playing' && (start === 0 || status.time >= start),
         `playFile "${uri}"; start=${start}`
       );
       // VLC doesn't have proper support for starting playback at a specific position.
       // Best we could do is play then seek.
-      this.#client.playFile(uri)
-        .then(() => start > 0 ? this.seek(start) : Promise.resolve())
+      this.#client
+        .playFile(uri)
+        .then(() => (start > 0 ? this.seek(start) : Promise.resolve()))
         .catch((error: unknown) => reject(ensureError(error)));
     });
   }
@@ -81,8 +82,7 @@ export class VLCControl extends PlayerControl<VLCStatus> {
         (status) => status.state === 'playing',
         'play'
       );
-      this.#client.play()
-        .catch((error: unknown) => reject(ensureError(error)));
+      this.#client.play().catch((error: unknown) => reject(ensureError(error)));
     });
   }
 
@@ -95,7 +95,8 @@ export class VLCControl extends PlayerControl<VLCStatus> {
         (status) => status.state === 'paused',
         'pause'
       );
-      this.#client.pause()
+      this.#client
+        .pause()
         .catch((error: unknown) => reject(ensureError(error)));
     });
   }
@@ -109,8 +110,7 @@ export class VLCControl extends PlayerControl<VLCStatus> {
         (status) => status.state === 'stopped',
         'stop'
       );
-      this.#client.stop()
-        .catch((error: unknown) => reject(ensureError(error)));
+      this.#client.stop().catch((error: unknown) => reject(ensureError(error)));
     });
   }
 
@@ -131,27 +131,26 @@ export class VLCControl extends PlayerControl<VLCStatus> {
   /**
    * When seeking, the time might fluctuate before stabilizing at the actual seeked-to position.
    * Here, we emit status events for 10 seconds -- hopefully the time would have stabilized by then.
-   * @param targetPosition 
-   * @returns 
+   * @param targetPosition
+   * @returns
    */
   #beginStatusEmitDuringSeek() {
     this.#cancelStatusEmitDuringSeek();
 
     const beginTime = Date.now();
     const timeout = 10000;
-    
+
     const setTimer = () => {
       this.#emitStatusDuringSeekTimer = setTimeout(() => {
         const status = this.#statusProvider.getStatus();
         this.#statusProvider.emit('status', status);
         if (Date.now() - beginTime >= timeout) {
           this.#cancelStatusEmitDuringSeek();
-        }
-        else {
+        } else {
           setTimer();
         }
       }, 1000);
-    }
+    };
 
     setTimer();
   }

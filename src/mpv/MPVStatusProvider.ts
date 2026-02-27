@@ -1,7 +1,10 @@
-import { type Logger } from "../common/ServiceContext";
-import _ from "lodash";
-import { type MPVCommandSender } from "./CommandSender";
-import { type PlayerStatus, PlayerStatusProvider } from "../common/PlayerStatusProvider";
+import { type Logger } from '../common/ServiceContext';
+import _ from 'lodash';
+import { type MPVCommandSender } from './CommandSender';
+import {
+  type PlayerStatus,
+  PlayerStatusProvider
+} from '../common/PlayerStatusProvider';
 
 export type MPVStatus = PlayerStatus;
 
@@ -38,7 +41,7 @@ const TARGET_PROPS = [
   'seeking'
 ] as const;
 
-export type ObservableProperty = typeof TARGET_PROPS[number];
+export type ObservableProperty = (typeof TARGET_PROPS)[number];
 
 const EMPTY_STATUS: InternalStatus = {
   volume: 0,
@@ -51,7 +54,6 @@ const EMPTY_STATUS: InternalStatus = {
 };
 
 export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
-
   #currentStatus: InternalStatus;
   // Track time separately - include in getStatus() / emit('status'...) / emit('time'...)
   #time: number;
@@ -74,7 +76,9 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
     if (this.#isObserving) {
       return;
     }
-    await Promise.all(TARGET_PROPS.map((prop, i) => this.#observe(prop, i + 1)));
+    await Promise.all(
+      TARGET_PROPS.map((prop, i) => this.#observe(prop, i + 1))
+    );
     this.#isObserving = true;
   }
 
@@ -83,43 +87,57 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
   }
 
   processParsedIncomingData(data: any[]) {
-    const propertyChangeEvents = data.reduce<PropertyChangeEvent[]>((result, res) => {
-      if (res['event'] === 'property-change') {
-        const { name: prop, id: subscriptionId, data } = res;
-        if (typeof subscriptionId === 'number' && this.#isObservableProperty(prop) && TARGET_PROPS[subscriptionId - 1] === prop) {
-          result.push({
-            subscriptionId,
-            prop,
-            data
-          });
+    const propertyChangeEvents = data.reduce<PropertyChangeEvent[]>(
+      (result, res) => {
+        if (res['event'] === 'property-change') {
+          const { name: prop, id: subscriptionId, data } = res;
+          if (
+            typeof subscriptionId === 'number' &&
+            this.#isObservableProperty(prop) &&
+            TARGET_PROPS[subscriptionId - 1] === prop
+          ) {
+            result.push({
+              subscriptionId,
+              prop,
+              data
+            });
+          }
         }
-      }
-      return result;
-    }, []);
+        return result;
+      },
+      []
+    );
 
     if (propertyChangeEvents.length === 0) {
       return;
     }
-    
-    const timePosEvent = propertyChangeEvents.filter(({prop}) => prop === 'time-pos').at(-1);
+
+    const timePosEvent = propertyChangeEvents
+      .filter(({ prop }) => prop === 'time-pos')
+      .at(-1);
     if (timePosEvent) {
       const oldTime = this.#time;
-      this.#time = typeof timePosEvent.data === 'number' ? timePosEvent.data : 0;
+      this.#time =
+        typeof timePosEvent.data === 'number' ? timePosEvent.data : 0;
       if (this.#time !== oldTime) {
         this.emit('time', this.#time);
       }
     }
 
-    const playbackRestart = propertyChangeEvents.some(({prop}) => prop === 'playback-restart');
+    const playbackRestart = propertyChangeEvents.some(
+      ({ prop }) => prop === 'playback-restart'
+    );
 
-    const seekingEvents = propertyChangeEvents.filter(({prop}) => prop === 'seeking');
+    const seekingEvents = propertyChangeEvents.filter(
+      ({ prop }) => prop === 'seeking'
+    );
     let hasFinishedSeeking = false;
-    for (const {data: isSeeking} of seekingEvents) {
+    for (const { data: isSeeking } of seekingEvents) {
       if (typeof isSeeking === 'boolean') {
         if (isSeeking) {
           this.#currentStatus.isSeeking = true;
-        }
-        else if (this.#currentStatus.isSeeking) { // was seeking - now finished
+        } else if (this.#currentStatus.isSeeking) {
+          // was seeking - now finished
           this.#currentStatus.isSeeking = false;
           hasFinishedSeeking = true;
           break;
@@ -134,11 +152,15 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
       'playback-restart',
       'seeking'
     ];
-    const updateStatusEvents = propertyChangeEvents.filter(({prop}) => !handledProps.includes(prop));
+    const updateStatusEvents = propertyChangeEvents.filter(
+      ({ prop }) => !handledProps.includes(prop)
+    );
 
     let statusChanged = false;
     if (updateStatusEvents.length > 0) {
-      this.#logger.info(`Status update -> property-change events: ${JSON.stringify(updateStatusEvents)}`);
+      this.#logger.info(
+        `Status update -> property-change events: ${JSON.stringify(updateStatusEvents)}`
+      );
       const newStatus = _.clone(this.#currentStatus);
       for (const event of updateStatusEvents) {
         this.#updateStatus(event['prop'], event['data'], newStatus);
@@ -147,8 +169,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
         // Update 'state' based on 'idle' and 'paused' values
         if (newStatus.idle) {
           newStatus.state = 'stopped';
-        }
-        else {
+        } else {
           newStatus.state = newStatus.paused ? 'paused' : 'playing';
         }
         if (!newStatus.title) {
@@ -178,7 +199,11 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
     return TARGET_PROPS.includes(prop as any);
   }
 
-  #updateStatus(prop: ObservableProperty, data: unknown, status: InternalStatus) {
+  #updateStatus(
+    prop: ObservableProperty,
+    data: unknown,
+    status: InternalStatus
+  ) {
     switch (prop) {
       case 'volume': {
         if (typeof data === 'number') {
@@ -189,8 +214,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
       case 'duration': {
         if (typeof data === 'number') {
           status.duration = data;
-        }
-        else {
+        } else {
           status.duration = undefined;
         }
         break;
@@ -217,8 +241,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
       case 'audio-codec-name': {
         if (typeof data === 'string') {
           status.trackType = data;
-        }
-        else {
+        } else {
           status.trackType = undefined;
         }
         break;
@@ -226,8 +249,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
       case 'media-title': {
         if (typeof data === 'string') {
           status.displayTitle = data;
-        }
-        else {
+        } else {
           status.displayTitle = undefined;
         }
         break;
@@ -241,7 +263,9 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
         break;
       }
       default:
-        this.#logger.warn(`Unhandled property-change event "${prop}": ${JSON.stringify(data)}`);
+        this.#logger.warn(
+          `Unhandled property-change event "${prop}": ${JSON.stringify(data)}`
+        );
         return;
     }
   }
@@ -250,7 +274,9 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
     if (!this.#isObserving) {
       return;
     }
-    await Promise.all(TARGET_PROPS.map((_, i) => this.#command.send('unobserve_property', i)));
+    await Promise.all(
+      TARGET_PROPS.map((_, i) => this.#command.send('unobserve_property', i))
+    );
     this.#isObserving = false;
   }
 
@@ -258,8 +284,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
     // If process killed, then don't unobserve() as that would definitely fail.
     if (!killed) {
       await this.unobserve();
-    }
-    else {
+    } else {
       this.#isObserving = false;
     }
     this.#currentStatus = {
@@ -274,7 +299,10 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
     // Example data: {"samplerate":44100,"channel-count":2,"channels":"stereo","hr-channels":"stereo","format":"floatp","bitrate": 192000}
     try {
       const samplerateValue = data['samplerate'] || undefined;
-      const samplerate = typeof samplerateValue === 'number' ? `${samplerateValue / 1000} kHz` : samplerateValue;
+      const samplerate =
+        typeof samplerateValue === 'number' ?
+          `${samplerateValue / 1000} kHz`
+        : samplerateValue;
       const channels = data['channel-count'] || undefined;
       // Bit depth may not be accurate, particularly "32-bit" which could actually be 24-bit but padded by mpv
       let bitdepth: string | undefined = undefined;
@@ -295,8 +323,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
         channels,
         bitdepth
       };
-    }
-    catch {
+    } catch {
       return {};
     }
   }
@@ -312,8 +339,7 @@ export class MPVStatusProvider extends PlayerStatusProvider<MPVStatus> {
       const bitrateNumber = Number(bitrateValue);
       if (!isNaN(bitrateNumber)) {
         bitrate = `${bitrateNumber / 1000} kbps`;
-      }
-      else {
+      } else {
         bitrate = bitrateValue;
       }
     }

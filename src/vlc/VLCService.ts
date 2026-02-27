@@ -1,25 +1,27 @@
-import { type ChildProcess, spawn } from "child_process";
-import { randomUUID } from "crypto";
-import { EOL } from "os";
-import portfinder from "portfinder";
+import { type ChildProcess, spawn } from 'child_process';
+import { randomUUID } from 'crypto';
+import { EOL } from 'os';
+import portfinder from 'portfinder';
 import pidtree from 'pidtree';
 import * as VLC from 'vlc-client';
-import { type ServiceContext, type Logger } from "../common/ServiceContext";
-import { type TrackInfo, VolumioStateManager } from "../common/VolumioStateManager";
-import { type VLCStatus, VLCStatusProvider } from "./VLCStatusProvider";
-import { VLCControl } from "./VLCControl";
-import { validateVolumioContext } from "../common/VolumioContext";
-import yargs from "yargs";
-import { getErrorMessage } from "../common/Util";
-import { DeferredPromise } from "@open-draft/deferred-promise";
-import { Service } from "../common/Service";
+import { type ServiceContext, type Logger } from '../common/ServiceContext';
+import {
+  type TrackInfo,
+  VolumioStateManager
+} from '../common/VolumioStateManager';
+import { type VLCStatus, VLCStatusProvider } from './VLCStatusProvider';
+import { VLCControl } from './VLCControl';
+import { validateVolumioContext } from '../common/VolumioContext';
+import yargs from 'yargs';
+import { getErrorMessage } from '../common/Util';
+import { DeferredPromise } from '@open-draft/deferred-promise';
+import { Service } from '../common/Service';
 
 export interface VLCServiceContext extends ServiceContext {
   vlcArgs?: string[];
 }
 
 export class VLCService extends Service<VLCStatus> {
-
   #context: VLCServiceContext;
   #process: ChildProcess | null = null;
   #isRunning = false;
@@ -30,29 +32,29 @@ export class VLCService extends Service<VLCStatus> {
   #logger: Logger;
   #client: VLC.Client | null = null;
   #statusEventHandler: (status: VLCStatus) => void;
-  
+
   constructor(context: VLCServiceContext) {
     super();
     this.#logger = this.#wrapLogger();
-    
+
     if (!context.volumio) {
       this.#context = {
         ...context,
         volumio: undefined
       };
-    }
-    else if (validateVolumioContext(context.volumio)) {
+    } else if (validateVolumioContext(context.volumio)) {
       this.#context = {
         ...context,
         volumio: context.volumio
       };
-    }
-    else {
-      this.#logger.error('Failed to validate Volumio context. No state management will be available.');
+    } else {
+      this.#logger.error(
+        'Failed to validate Volumio context. No state management will be available.'
+      );
       this.#context = {
         ...context,
         volumio: undefined
-      }
+      };
     }
     this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
   }
@@ -62,32 +64,38 @@ export class VLCService extends Service<VLCStatus> {
       const pid = this.#process ? this.#process.pid : null;
       const pidStr = pid ? ` (PID: ${pid})` : null;
       return `[${this.#context.serviceName}] [vlc]${pidStr || ''} ${msg}`;
-    }
+    };
     return {
       info: (msg: string) => this.#context.logger.info(logMsg(msg)),
       warn: (msg: string) => this.#context.logger.warn(logMsg(msg)),
-      error: (msg: string) => this.#context.logger.error(logMsg(msg)),
-    }
+      error: (msg: string) => this.#context.logger.error(logMsg(msg))
+    };
   }
 
   start() {
     return new Promise<void>((resolve, reject) => {
       void (async () => {
-        const port = await portfinder.getPortPromise({ host: 'localhost', port: 10000 });
+        const port = await portfinder.getPortPromise({
+          host: 'localhost',
+          port: 10000
+        });
         const sArgs = [
           '--novideo',
-          '--extraintf', 'http',
-          '--http-port', port.toString()
+          '--extraintf',
+          'http',
+          '--http-port',
+          port.toString()
         ];
         if (this.#context.vlcArgs) {
           sArgs.push(...this.#context.vlcArgs);
         }
-        const customArgs = this.#context.vlcArgs ?
-          yargs(this.#context.vlcArgs)
-            .option("aout", { type: "string" })
-            .option("alsa-audio-device", { type: "string" })
-            .option("http-password", { type: "string" })
-            .parseSync()
+        const customArgs =
+          this.#context.vlcArgs ?
+            yargs(this.#context.vlcArgs)
+              .option('aout', { type: 'string' })
+              .option('alsa-audio-device', { type: 'string' })
+              .option('http-password', { type: 'string' })
+              .parseSync()
           : null;
         if (!customArgs || customArgs['aout']) {
           sArgs.push('--aout', 'alsa');
@@ -98,18 +106,14 @@ export class VLCService extends Service<VLCStatus> {
         let pw = randomUUID().replaceAll('-', '').slice(0, 12);
         if (customArgs && customArgs['http-password']) {
           pw = customArgs['http-password'];
-        }
-        else {
+        } else {
           sArgs.push('--http-password', pw);
         }
-        const s = spawn('cvlc',
-          sArgs,
-          {
-            uid: 1000,
-            gid: 1000,
-            shell: true
-          }
-        );
+        const s = spawn('cvlc', sArgs, {
+          uid: 1000,
+          gid: 1000,
+          shell: true
+        });
         let lastError: Error | null = null;
         const preStartErrors: string[] = [];
 
@@ -119,47 +123,48 @@ export class VLCService extends Service<VLCStatus> {
           if (!this.#isRunning) {
             if (lastError) {
               reject(lastError);
-            }
-            else if (preStartErrors.length > 0) {
+            } else if (preStartErrors.length > 0) {
               reject(Error(preStartErrors.join(EOL)));
-            }
-            else {
+            } else {
               reject(Error('Unknown cause'));
             }
           }
-        }
+        };
 
-        this.#resolveOnStart(port, pw).then(() => {
-          this.#isRunning = true;
-          this.#logger.info(`Started and responding on port ${port}`);
-          this.#client = new VLC.Client({
-            ip: 'localhost',
-            port: port,
-            password: pw
+        this.#resolveOnStart(port, pw)
+          .then(() => {
+            this.#isRunning = true;
+            this.#logger.info(`Started and responding on port ${port}`);
+            this.#client = new VLC.Client({
+              ip: 'localhost',
+              port: port,
+              password: pw
+            });
+            this.#statusProvider = new VLCStatusProvider({
+              client: this.#client,
+              logger: this.#logger
+            });
+            this.#control = new VLCControl({
+              context: this.#context,
+              client: this.#client,
+              statusProvider: this.#statusProvider
+            });
+            this.#manager = new VolumioStateManager({
+              context: this.#context,
+              control: this.#control,
+              statusProvider: this.#statusProvider,
+              logger: this.#logger
+            });
+          })
+          .then(() =>
+            this.#statusProvider!.on('status', this.#statusEventHandler)
+          )
+          .then(() => this.#statusProvider!.startPolling())
+          .then(() => resolve())
+          .catch((error: unknown) => {
+            preStartErrors.push(getErrorMessage(error));
+            return rejectIfNotRunning();
           });
-          this.#statusProvider = new VLCStatusProvider({
-            client: this.#client,
-            logger: this.#logger
-          });
-          this.#control = new VLCControl({
-            context: this.#context,
-            client: this.#client,
-            statusProvider: this.#statusProvider
-          });
-          this.#manager = new VolumioStateManager({
-            context: this.#context,
-            control: this.#control,
-            statusProvider: this.#statusProvider,
-            logger: this.#logger
-          });
-        })
-        .then(() => this.#statusProvider!.on('status', this.#statusEventHandler))
-        .then(() => this.#statusProvider!.startPolling())
-        .then(() => resolve())
-        .catch((error: unknown) => {
-          preStartErrors.push(getErrorMessage(error));
-          return rejectIfNotRunning();
-        });
 
         s.stderr.on('data', (msg) => {
           const _msg = msg.toString() as string;
@@ -192,7 +197,9 @@ export class VLCService extends Service<VLCStatus> {
             this.#manager!.unsetVolatile();
           }
           this.#reset();
-          this.#logger.info(`Process closed - code: ${code}, signal: ${signal}`);
+          this.#logger.info(
+            `Process closed - code: ${code}, signal: ${signal}`
+          );
           rejectIfNotRunning();
           this.emit('close', emitCode, signal);
           if (this.#quitPromise) {
@@ -204,7 +211,7 @@ export class VLCService extends Service<VLCStatus> {
           this.#logger.error(`Process error: ${err.message}`);
           lastError = err;
         });
-        
+
         this.#process = s;
       })();
     });
@@ -218,22 +225,26 @@ export class VLCService extends Service<VLCStatus> {
     const check = async (resolve: () => void, reject: (err: Error) => void) => {
       const isTimedOut = Date.now() - startTime > timeout;
       try {
-        const res = await fetch(`http://localhost:${port}/requests/status.json`, {
-          headers: {
-            'Authorization': `Basic ${token}`
+        const res = await fetch(
+          `http://localhost:${port}/requests/status.json`,
+          {
+            headers: {
+              Authorization: `Basic ${token}`
+            }
           }
-        });
+        );
         if (res.ok) {
           resolve();
-        }
-        else if (isTimedOut) {
+        } else if (isTimedOut) {
           reject(Error('Timeout waiting for VLC to respond'));
         } else {
           setTimeout(() => void check(resolve, reject), interval);
         }
       } catch (error) {
         if (isTimedOut) {
-          return reject(Error(`Failed to fetch VLC status: ${getErrorMessage(error)}`));
+          return reject(
+            Error(`Failed to fetch VLC status: ${getErrorMessage(error)}`)
+          );
         }
         setTimeout(() => void check(resolve, reject), interval);
       }
@@ -246,7 +257,7 @@ export class VLCService extends Service<VLCStatus> {
 
   #forwardStatusEvent(status: VLCStatus) {
     this.emit('status', status);
-  };
+  }
 
   async quit() {
     if (this.#quitPromise) {
@@ -260,16 +271,17 @@ export class VLCService extends Service<VLCStatus> {
     await this.stop();
     this.#statusProvider?.stopPolling();
 
-    const proc = this.#process;    
+    const proc = this.#process;
     let tree: number[];
     try {
       if (proc.pid === undefined) {
         throw Error('proc.pid is undefined');
       }
       tree = await pidtree(proc.pid, { root: true });
-    }
-    catch (error) {
-      this.#logger.warn(`Failed to obtain PID tree for killing - resolving anyway: ${getErrorMessage(error)}`);
+    } catch (error) {
+      this.#logger.warn(
+        `Failed to obtain PID tree for killing - resolving anyway: ${getErrorMessage(error)}`
+      );
       this.#reset();
       return Promise.resolve();
     }
@@ -284,18 +296,20 @@ export class VLCService extends Service<VLCStatus> {
           this.#logger.info(`Killing PID ${pid}`);
           this.#sigkill(pid);
         }
-      }
-      catch (error) {
-        this.#logger.warn(`Error killing PID ${pid} - proceeding anyway: ${getErrorMessage(error)}`);
+      } catch (error) {
+        this.#logger.warn(
+          `Error killing PID ${pid} - proceeding anyway: ${getErrorMessage(error)}`
+        );
         cleanKill = false;
       }
       pid = tree.shift();
     }
     if (cleanKill) {
       this.#logger.info('Process killed');
-    }
-    else {
-      this.#logger.warn('Process killed uncleanly - there may be zombie processes left behind.');
+    } else {
+      this.#logger.warn(
+        'Process killed uncleanly - there may be zombie processes left behind.'
+      );
     }
 
     this.#quitPromise = deferred.finally(() => {
@@ -313,8 +327,7 @@ export class VLCService extends Service<VLCStatus> {
     try {
       process.kill(pid, 0);
       return true;
-    }
-    catch (error) {
+    } catch (error) {
       return false;
     }
   }
@@ -357,8 +370,10 @@ export class VLCService extends Service<VLCStatus> {
     if (!this.#manager || this.#quitPromise) {
       return false;
     }
-    return this.#manager.isCurrentServiceAndVolatile() &&
-      this.getStatus()?.state !== 'stopped';
+    return (
+      this.#manager.isCurrentServiceAndVolatile() &&
+      this.getStatus()?.state !== 'stopped'
+    );
   }
 
   getStatus() {
@@ -388,7 +403,7 @@ export class VLCService extends Service<VLCStatus> {
     const { control } = this.#assertReady();
     return control.play();
   }
-  
+
   next() {
     const { control } = this.#assertReady();
     return control.next();

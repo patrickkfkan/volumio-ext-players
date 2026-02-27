@@ -1,36 +1,47 @@
-import { type ChildProcess, execSync, spawn } from "child_process";
-import { randomUUID } from "crypto";
-import { EOL } from "os";
+import { type ChildProcess, execSync, spawn } from 'child_process';
+import { randomUUID } from 'crypto';
+import { EOL } from 'os';
 import pidtree from 'pidtree';
 import yargs from 'yargs';
-import path from "path";
-import { Socket } from "net";
-import { MPVControl } from "./MPVControl";
-import { MPVStatusProvider, type MPVStatus } from "./MPVStatusProvider";
-import { MPVCommandSender } from "./CommandSender";
-import { validateVolumioContext, type VolumioContext } from "../common/VolumioContext";
-import { type ServiceContext, type Logger } from "../common/ServiceContext";
-import { type TrackInfo, VolumioStateManager } from "../common/VolumioStateManager";
-import { MPVHelper } from "./MPVHelper";
-import { getErrorMessage } from "../common/Util";
-import { existsSync, unlinkSync } from "fs";
-import { DeferredPromise } from "@open-draft/deferred-promise";
-import { Service } from "../common/Service";
+import path from 'path';
+import { Socket } from 'net';
+import { MPVControl } from './MPVControl';
+import { MPVStatusProvider, type MPVStatus } from './MPVStatusProvider';
+import { MPVCommandSender } from './CommandSender';
+import {
+  validateVolumioContext,
+  type VolumioContext
+} from '../common/VolumioContext';
+import { type ServiceContext, type Logger } from '../common/ServiceContext';
+import {
+  type TrackInfo,
+  VolumioStateManager
+} from '../common/VolumioStateManager';
+import { MPVHelper } from './MPVHelper';
+import { getErrorMessage } from '../common/Util';
+import { existsSync, unlinkSync } from 'fs';
+import { DeferredPromise } from '@open-draft/deferred-promise';
+import { Service } from '../common/Service';
 
 export interface MPVServiceContext extends ServiceContext {
   mpvArgs?: string[];
 }
 
-export type UnvalidatedMPVServiceContext = Omit<MPVServiceContext, 'volumio'> & {
-  volumio?: Omit<VolumioContext, 'commandRouter' | 'statemachine' | 'mpdPlugin'> & {
+export type UnvalidatedMPVServiceContext = Omit<
+  MPVServiceContext,
+  'volumio'
+> & {
+  volumio?: Omit<
+    VolumioContext,
+    'commandRouter' | 'statemachine' | 'mpdPlugin'
+  > & {
     commandRouter: unknown;
     statemachine: unknown;
     mpdPlugin: unknown;
-  }
+  };
 };
 
 export class MPVService extends Service<MPVStatus> {
-
   #context: MPVServiceContext;
   #process: ChildProcess | null = null;
   #isRunning = false;
@@ -55,21 +66,22 @@ export class MPVService extends Service<MPVStatus> {
         ...context,
         volumio: undefined
       };
-    }
-    else if (validateVolumioContext(context.volumio)) {
+    } else if (validateVolumioContext(context.volumio)) {
       this.#context = {
         ...context,
         volumio: context.volumio
       };
-    }
-    else {
-      this.#logger.error('Failed to validate Volumio context. No state management will be available.');
+    } else {
+      this.#logger.error(
+        'Failed to validate Volumio context. No state management will be available.'
+      );
       this.#context = {
         ...context,
         volumio: undefined
-      }
+      };
     }
-    this.#incomingSocketDataHandler = (data) => this.#handleIncomingSocketData(data);
+    this.#incomingSocketDataHandler = (data) =>
+      this.#handleIncomingSocketData(data);
     this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
   }
 
@@ -78,29 +90,29 @@ export class MPVService extends Service<MPVStatus> {
       const pid = this.#process ? this.#process.pid : null;
       const pidStr = pid ? ` (PID: ${pid})` : null;
       return `[${this.#context.serviceName}] [mpv]${pidStr || ''} ${msg}`;
-    }
+    };
     return {
       info: (msg: string) => this.#context.logger.info(logMsg(msg)),
       warn: (msg: string) => this.#context.logger.warn(logMsg(msg)),
-      error: (msg: string) => this.#context.logger.error(logMsg(msg)),
-    }
+      error: (msg: string) => this.#context.logger.error(logMsg(msg))
+    };
   }
 
   #getMpvVersion() {
     try {
-      const output = execSync('mpv --version', { encoding: 'utf8' });   
+      const output = execSync('mpv --version', { encoding: 'utf8' });
       const versionLine = output.split('\n')[0];
       const versionMatch = versionLine.match(/mpv\s+v?([0-9.]+)/);
       if (versionMatch && versionMatch[1]) {
         this.#logger.info(`mpv version: ${versionMatch[1]}`);
         return versionMatch[1];
-      }
-      else {
+      } else {
         throw Error('No version found in output of "mpv --version"');
       }
-    }
-    catch (error: unknown) {
-      this.#logger.error(`Failed to get mpv version: ${getErrorMessage(error)}`);
+    } catch (error: unknown) {
+      this.#logger.error(
+        `Failed to get mpv version: ${getErrorMessage(error)}`
+      );
       return null;
     }
   }
@@ -108,32 +120,33 @@ export class MPVService extends Service<MPVStatus> {
   start() {
     const mpvVersion = this.#getMpvVersion();
     return new Promise<void>((resolve, reject) => {
-      this.#socketPath = path.resolve('/tmp', `volumio_mpv_socket_${randomUUID()}`);
+      this.#socketPath = path.resolve(
+        '/tmp',
+        `volumio_mpv_socket_${randomUUID()}`
+      );
       const sArgs = [
         '--idle',
         '--no-video',
         `--input-ipc-server="${this.#socketPath}"`,
-        '--term-status-msg=""',
+        '--term-status-msg=""'
       ];
       if (this.#context.mpvArgs) {
         sArgs.push(...this.#context.mpvArgs);
       }
-      const customArgs = this.#context.mpvArgs ?
-        yargs(this.#context.mpvArgs)
-          .option("audio-device", { type: "string" })
-          .parseSync()
-        : null; 
+      const customArgs =
+        this.#context.mpvArgs ?
+          yargs(this.#context.mpvArgs)
+            .option('audio-device', { type: 'string' })
+            .parseSync()
+        : null;
       if (!customArgs || !customArgs['audio-device']) {
         sArgs.push(`--audio-device="alsa/volumio"`);
       }
-      const s = spawn('mpv',
-        sArgs,
-        {
-          uid: 1000,
-          gid: 1000,
-          shell: true
-        }
-      );
+      const s = spawn('mpv', sArgs, {
+        uid: 1000,
+        gid: 1000,
+        shell: true
+      });
       let lastError: Error | null = null;
       const preStartErrors: string[] = [];
 
@@ -143,46 +156,47 @@ export class MPVService extends Service<MPVStatus> {
         if (!this.#isRunning) {
           if (lastError) {
             reject(lastError);
-          }
-          else if (preStartErrors.length > 0) {
+          } else if (preStartErrors.length > 0) {
             reject(Error(preStartErrors.join(EOL)));
-          }
-          else {
+          } else {
             reject(Error('Unknown cause'));
           }
         }
-      }
+      };
 
-      this.#createSocket(this.#socketPath).then((socket) => {
-        this.#isRunning = true;
-        this.#logger.info(`Started (IPC socket: ${this.#socketPath})`);
-        this.#socket = socket;
-        this.#command = new MPVCommandSender({
-          socket,
-          logger: this.#logger
-        });
-        this.#statusProvider = new MPVStatusProvider({
-          commandSender: this.#command,
-          logger: this.#logger
-        });
-        this.#control = new MPVControl({
-          mpvVersion,
-          context: this.#context,
-          statusProvider: this.#statusProvider,
-          commandSender: this.#command,
-          logger: this.#logger
-        });
-        this.#manager = new VolumioStateManager({
-          context: this.#context,
-          control: this.#control,
-          statusProvider: this.#statusProvider,
-          logger: this.#logger
-        });
-      })
+      this.#createSocket(this.#socketPath)
+        .then((socket) => {
+          this.#isRunning = true;
+          this.#logger.info(`Started (IPC socket: ${this.#socketPath})`);
+          this.#socket = socket;
+          this.#command = new MPVCommandSender({
+            socket,
+            logger: this.#logger
+          });
+          this.#statusProvider = new MPVStatusProvider({
+            commandSender: this.#command,
+            logger: this.#logger
+          });
+          this.#control = new MPVControl({
+            mpvVersion,
+            context: this.#context,
+            statusProvider: this.#statusProvider,
+            commandSender: this.#command,
+            logger: this.#logger
+          });
+          this.#manager = new VolumioStateManager({
+            context: this.#context,
+            control: this.#control,
+            statusProvider: this.#statusProvider,
+            logger: this.#logger
+          });
+        })
         .then(() => {
           this.#socket!.on('data', this.#incomingSocketDataHandler);
         })
-        .then(() => this.#statusProvider!.on('status', this.#statusEventHandler))
+        .then(() =>
+          this.#statusProvider!.on('status', this.#statusEventHandler)
+        )
         .then(() => this.#statusProvider!.start())
         .then(() => resolve())
         .catch((error: unknown) => {
@@ -222,7 +236,9 @@ export class MPVService extends Service<MPVStatus> {
             this.#manager!.unsetVolatile();
           }
           await this.#reset();
-          this.#logger.info(`Process closed - code: ${code}, signal: ${signal}`);
+          this.#logger.info(
+            `Process closed - code: ${code}, signal: ${signal}`
+          );
           rejectIfNotRunning();
           this.emit('close', emitCode, signal);
           if (this.#quitPromise) {
@@ -249,11 +265,11 @@ export class MPVService extends Service<MPVStatus> {
     }
     this.#command?.processParsedIncomingData(parsed);
     this.#statusProvider?.processParsedIncomingData(parsed);
-  };
+  }
 
   #forwardStatusEvent(status: MPVStatus) {
     this.emit('status', status);
-  };
+  }
 
   #createSocket(socketPath: string) {
     const interval = 300;
@@ -287,7 +303,9 @@ export class MPVService extends Service<MPVStatus> {
       return;
     }
     if (!this.#command || !this.#socket) {
-      this.#logger.warn('Cannot quit - CommandSender or socket not initialized');
+      this.#logger.warn(
+        'Cannot quit - CommandSender or socket not initialized'
+      );
       return;
     }
     await this.stop();
@@ -319,7 +337,7 @@ export class MPVService extends Service<MPVStatus> {
     void (async () => {
       await command.send('quit');
     })();
-    
+
     this.#quitPromise = deferred.finally(() => {
       this.#quitPromise = null;
     });
@@ -341,9 +359,10 @@ export class MPVService extends Service<MPVStatus> {
             throw Error('proc.pid is undefined');
           }
           tree = await pidtree(proc.pid, { root: true });
-        }
-        catch (error) {
-          this.#logger.warn(`Failed to obtain PID tree for killing - resolving anyway: ${getErrorMessage(error)}`);
+        } catch (error) {
+          this.#logger.warn(
+            `Failed to obtain PID tree for killing - resolving anyway: ${getErrorMessage(error)}`
+          );
           await this.#reset();
           resolve();
           return;
@@ -356,18 +375,20 @@ export class MPVService extends Service<MPVStatus> {
               this.#logger.info(`Killing PID ${pid}`);
               this.#sigkill(pid);
             }
-          }
-          catch (error) {
-            this.#logger.warn(`Error killing PID ${pid} - proceeding anyway: ${getErrorMessage(error)}`);
+          } catch (error) {
+            this.#logger.warn(
+              `Error killing PID ${pid} - proceeding anyway: ${getErrorMessage(error)}`
+            );
             cleanKill = false;
           }
           pid = tree.shift();
         }
         if (cleanKill) {
           this.#logger.info('Process killed');
-        }
-        else {
-          this.#logger.warn('Process killed uncleanly - there may be zombie processes left behind.');
+        } else {
+          this.#logger.warn(
+            'Process killed uncleanly - there may be zombie processes left behind.'
+          );
         }
         resolve();
       })();
@@ -382,8 +403,7 @@ export class MPVService extends Service<MPVStatus> {
     try {
       process.kill(pid, 0);
       return true;
-    }
-    catch (error) {
+    } catch (error) {
       return false;
     }
   }
@@ -397,8 +417,7 @@ export class MPVService extends Service<MPVStatus> {
       this.#statusProvider.off('status', this.#statusEventHandler);
       try {
         await this.#statusProvider.reset();
-      }
-      catch (_) {
+      } catch (_) {
         // Do nothing
       }
       this.#statusProvider = null;
@@ -413,9 +432,10 @@ export class MPVService extends Service<MPVStatus> {
     if (this.#socketPath && existsSync(this.#socketPath)) {
       try {
         unlinkSync(this.#socketPath);
-      }
-      catch (error: unknown) {
-        this.#logger.error(`Failed to clean up socket file "${this.#socketPath}": ${getErrorMessage(error)}`);
+      } catch (error: unknown) {
+        this.#logger.error(
+          `Failed to clean up socket file "${this.#socketPath}": ${getErrorMessage(error)}`
+        );
       }
     }
     if (this.#process) {
@@ -445,8 +465,10 @@ export class MPVService extends Service<MPVStatus> {
     if (!this.#manager || this.#quitPromise) {
       return false;
     }
-    return this.#manager.isCurrentServiceAndVolatile() &&
-      this.getStatus()?.state !== 'stopped';
+    return (
+      this.#manager.isCurrentServiceAndVolatile() &&
+      this.getStatus()?.state !== 'stopped'
+    );
   }
 
   getStatus() {

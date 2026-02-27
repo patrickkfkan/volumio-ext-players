@@ -1,7 +1,7 @@
-import { type Socket } from "net";
-import { type Logger } from "../common/ServiceContext";
-import { type MPVSeekMode } from "./MPVControl";
-import { type ObservableProperty } from "./MPVStatusProvider";
+import { type Socket } from 'net';
+import { type Logger } from '../common/ServiceContext';
+import { type MPVSeekMode } from './MPVControl';
+import { type ObservableProperty } from './MPVStatusProvider';
 
 export interface MPVCommandSenderOptions {
   socket: Socket;
@@ -11,11 +11,17 @@ export interface MPVCommandSenderOptions {
 const TIME_OUT = 10000;
 
 export class MPVCommandSender {
-  
   #requestId = 0;
   #socket: Socket;
   #logger: Logger;
-  #pendingCommands: Record<number, { resolve: (value: any) => void; reject: (error: unknown) => void; timer: NodeJS.Timeout }> = {};
+  #pendingCommands: Record<
+    number,
+    {
+      resolve: (value: any) => void;
+      reject: (error: unknown) => void;
+      timer: NodeJS.Timeout;
+    }
+  > = {};
 
   constructor(options: MPVCommandSenderOptions) {
     this.#socket = options.socket;
@@ -35,7 +41,9 @@ export class MPVCommandSender {
         const { resolve, reject, timer } = this.#pendingCommands[requestId];
         clearTimeout(timer);
         delete this.#pendingCommands[requestId];
-        this.#logger.info(`Got response for command #${requestId}: ${JSON.stringify(res)}`);
+        this.#logger.info(
+          `Got response for command #${requestId}: ${JSON.stringify(res)}`
+        );
         if (res['error'] === 'success') {
           resolve(res['data']);
         }
@@ -63,21 +71,43 @@ export class MPVCommandSender {
   ): Promise<void>;
   send(command: 'stop'): Promise<void>;
   send(command: 'seek', position: number, mode: MPVSeekMode): Promise<void>;
-  send(command: 'observe_property', susbcriptionId: number, property: ObservableProperty): Promise<void>;
+  send(
+    command: 'observe_property',
+    susbcriptionId: number,
+    property: ObservableProperty
+  ): Promise<void>;
   send(command: 'unobserve_property', susbcriptionId: number): Promise<void>;
-  send(command: 'set_property', property: 'loop-file', times: 'inf' | 'no' | number): Promise<void>;
-  send(command: 'get_property', property: 'volume' | 'time-pos'): Promise<number>;
-  send(command: 'set_property', property: 'volume' | 'time-pos', value: number): Promise<void>;
-  send(command: 'get_property', property: 'pause' | 'idle-active'): Promise<boolean>;
-  send(command: 'set_property', property: 'pause', value: boolean): Promise<void>;
+  send(
+    command: 'set_property',
+    property: 'loop-file',
+    times: 'inf' | 'no' | number
+  ): Promise<void>;
+  send(
+    command: 'get_property',
+    property: 'volume' | 'time-pos'
+  ): Promise<number>;
+  send(
+    command: 'set_property',
+    property: 'volume' | 'time-pos',
+    value: number
+  ): Promise<void>;
+  send(
+    command: 'get_property',
+    property: 'pause' | 'idle-active'
+  ): Promise<boolean>;
+  send(
+    command: 'set_property',
+    property: 'pause',
+    value: boolean
+  ): Promise<void>;
   send(command: 'quit'): Promise<void>;
   send(command: string, ...params: unknown[]) {
     const requestId = this.#newRequestId();
     const cmd = {
       command: [command, ...params],
       request_id: requestId
-    }
-    
+    };
+
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         delete this.#pendingCommands[requestId];

@@ -1,8 +1,7 @@
 import _ from 'lodash';
-import { type VlcStatus } from "vlc-client/dist/Types";
+import { type VlcStatus } from 'vlc-client/dist/Types';
 
 export class VLCHelper {
-
   static getTrackInfo(status: VlcStatus) {
     if (!status.information) {
       return undefined;
@@ -14,15 +13,20 @@ export class VLCHelper {
       album: meta.album,
       duration: status.length,
       ...this.#getAudioInfo(status)
-    }
+    };
   }
 
   static #getTitle(status: VlcStatus): string | undefined {
-    if (status.information.title && typeof status.information.title === 'string') {
+    if (
+      status.information.title &&
+      typeof status.information.title === 'string'
+    ) {
       return status.information.title;
     }
     if (status.information.titles) {
-      const title = status.information.titles.find(t => t && typeof t === 'string');
+      const title = status.information.titles.find(
+        (t) => t && typeof t === 'string'
+      );
       if (title) {
         return title;
       }
@@ -42,9 +46,11 @@ export class VLCHelper {
             samplerate: _.get(cat, 'Sample_rate'),
             bitrate: _.get(cat, 'Bitrate'),
             bitdepth: _.get(cat, 'Bits_per_sample'),
-            channels: channels === 'Stereo' ? 2 :
-                      channels === 'Mono' ? 1 :
-                      channels ? parseInt(channels, 10) : undefined
+            channels:
+              channels === 'Stereo' ? 2
+              : channels === 'Mono' ? 1
+              : channels ? parseInt(channels, 10)
+              : undefined
           };
         }
       }

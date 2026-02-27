@@ -1,4 +1,4 @@
-import { type VolumioContext } from "./VolumioContext";
+import { type VolumioContext } from './VolumioContext';
 
 export interface Logger {
   info: (msg: string) => void;

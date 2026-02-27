@@ -1,5 +1,5 @@
-import _ from "lodash";
-import { type VolumioState } from "./VolumioStateManager";
+import _ from 'lodash';
+import { type VolumioState } from './VolumioStateManager';
 
 export interface StateMachine {
   currentStatus: 'play' | 'pause' | 'stop';
@@ -11,7 +11,7 @@ export interface StateMachine {
   play: () => any;
   randomQueue: {
     prev: () => number;
-  }
+  };
   currentRepeat: boolean;
   currentRepeatSingleSong: boolean;
   currentRandom: boolean;
@@ -23,16 +23,16 @@ export interface StateMachine {
 
   volatileState?: {
     seek: number;
-  }
+  };
 
   unSetVolatile: () => void;
-  setVolatile: (params: { service: string; callback: () => void; }) => void;
+  setVolatile: (params: { service: string; callback: () => void }) => void;
   setConsumeUpdateService: (serviceName?: string) => void;
 }
 
 export interface CommandRouter {
   servicePushState: (state: VolumioState, serviceName: string) => void;
-  volumioGetState: () => { service: string, volatile: boolean };
+  volumioGetState: () => { service: string; volatile: boolean };
   volumioStop: () => any;
 }
 
@@ -43,9 +43,9 @@ export interface MPDPlugin {
 export interface VolumioStateTranformer {
   transformStateBeforePush?: (state: VolumioState) => VolumioState;
   /**
-   * 
+   *
    * @param playerTime Player seek position in milliseconds
-   * @returns 
+   * @returns
    */
   modifyVolatileSeekBeforeSet?: (playerTime: number) => number;
 }
@@ -102,12 +102,8 @@ function validateStateMachine(value: any): value is StateMachine {
 function validateCommandRouter(value: any): value is CommandRouter {
   if (!value || typeof value !== 'object') {
     return false;
-  } 
-  const fns = [
-    'servicePushState',
-    'volumioGetState',
-    'volumioStop'
-  ];
+  }
+  const fns = ['servicePushState', 'volumioGetState', 'volumioStop'];
   return fnsExist(value, fns);
 }
 

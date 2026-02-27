@@ -1,7 +1,10 @@
 import _ from 'lodash';
 import { getErrorMessage, kewToJSPromise } from './Util';
 import { type ServiceContext, type Logger } from './ServiceContext';
-import { type PlayerStatus, type PlayerStatusProvider } from './PlayerStatusProvider';
+import {
+  type PlayerStatus,
+  type PlayerStatusProvider
+} from './PlayerStatusProvider';
 import { type PlayerControl } from './PlayerControl';
 import { type VolumioContext } from './VolumioContext';
 
@@ -60,11 +63,10 @@ const EMPTY_STATE: Omit<VolumioState, 'service'> = {
   albumart: '/albumart',
   uri: '',
   seek: 0,
-  duration: 0,
+  duration: 0
 } as const;
 
 export class VolumioStateManager<S extends PlayerStatus> {
-
   #context: ServiceContext;
   #logger: Logger;
   #suppliedTrackInfo: TrackInfo | null = null;
@@ -86,7 +88,8 @@ export class VolumioStateManager<S extends PlayerStatus> {
     this.#timeListener = (time) => this.#handlePlayerTimeChange(time);
     this.#statusProvider.on('status', this.#statusListener);
     this.#statusProvider.on('time', this.#timeListener);
-    this.#unsetVolatileOnStop = options.context.volumio?.unsetVolatileOnStop ?? 'always';
+    this.#unsetVolatileOnStop =
+      options.context.volumio?.unsetVolatileOnStop ?? 'always';
   }
 
   async prepareForPlayback(trackInfo: TrackInfo) {
@@ -110,13 +113,16 @@ export class VolumioStateManager<S extends PlayerStatus> {
     if (
       !this.#context.volumio ||
       !this.#context.volumio.statemachine.volatileState ||
-      this.#statusProvider.getStatus().state  === 'stopped'
+      this.#statusProvider.getStatus().state === 'stopped'
     ) {
       return;
     }
     let seek = time * 1000;
     if (this.#context.volumio.stateTransformer?.modifyVolatileSeekBeforeSet) {
-      seek = this.#context.volumio.stateTransformer.modifyVolatileSeekBeforeSet(seek);
+      seek =
+        this.#context.volumio.stateTransformer.modifyVolatileSeekBeforeSet(
+          seek
+        );
     }
     this.#context.volumio.statemachine.volatileState.seek = seek;
   }
@@ -129,14 +135,18 @@ export class VolumioStateManager<S extends PlayerStatus> {
         (this.#unsetVolatileOnStop === 'manual' && this.#control.isStopping())
       ) {
         if (this.#context.volumio) {
-          this.#logger.info('Player status "stopped" - unsetting ourselves as current service...');
+          this.#logger.info(
+            'Player status "stopped" - unsetting ourselves as current service...'
+          );
         }
         // "stop" state will be pushed when unsetting volatile state
         // - see onUnsetVolatile() callback
         this.unsetVolatile();
         return;
       }
-      this.#logger.info(`Player status "stopped" - skip unset volatile because unset condition is "${this.#unsetVolatileOnStop}"`);
+      this.#logger.info(
+        `Player status "stopped" - skip unset volatile because unset condition is "${this.#unsetVolatileOnStop}"`
+      );
       return;
     }
     if (this.#control.isStopping()) {
@@ -152,8 +162,10 @@ export class VolumioStateManager<S extends PlayerStatus> {
 
   protected getObservedStateFromPlayerStatus(status: S): ObservedState {
     return {
-      status: status.state === 'playing' ? 'play' :
-              status.state === 'paused' ? 'pause' : 'stop',
+      status:
+        status.state === 'playing' ? 'play'
+        : status.state === 'paused' ? 'pause'
+        : 'stop',
       uri: this.#suppliedTrackInfo?.uri || '',
       title: this.#suppliedTrackInfo?.title || status.title,
       artist: this.#suppliedTrackInfo?.artist || status.artist,
@@ -164,7 +176,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
       samplerate: this.#suppliedTrackInfo?.samplerate || status.samplerate,
       bitdepth: this.#suppliedTrackInfo?.bitdepth || status.bitdepth,
       bitrate: this.#suppliedTrackInfo?.bitrate || status.bitrate,
-      channels: this.#suppliedTrackInfo?.channels || status.channels,
+      channels: this.#suppliedTrackInfo?.channels || status.channels
     };
   }
 
@@ -173,8 +185,10 @@ export class VolumioStateManager<S extends PlayerStatus> {
       return;
     }
     if (!observedState) {
-      observedState = this.getObservedStateFromPlayerStatus(this.#statusProvider.getStatus());
-    }     
+      observedState = this.getObservedStateFromPlayerStatus(
+        this.#statusProvider.getStatus()
+      );
+    }
     const sm = this.#context.volumio.statemachine;
     let state: VolumioState = {
       ...observedState,
@@ -191,13 +205,17 @@ export class VolumioStateManager<S extends PlayerStatus> {
     };
 
     if (this.#context.volumio.stateTransformer?.transformStateBeforePush) {
-      state = this.#context.volumio.stateTransformer.transformStateBeforePush(state);
+      state =
+        this.#context.volumio.stateTransformer.transformStateBeforePush(state);
     }
 
     if (!_.isEqual(state, this.#lastPushedState)) {
       this.#lastPushedState = _.clone(state);
       this.#logger.info(`Push Volumio state: ${JSON.stringify(state)}`);
-      this.#context.volumio.commandRouter.servicePushState(state, this.#context.serviceName);
+      this.#context.volumio.commandRouter.servicePushState(
+        state,
+        this.#context.serviceName
+      );
     }
   }
 
@@ -211,7 +229,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
     if (!this.#context.volumio || this.isCurrentServiceAndVolatile()) {
       return;
     }
-    
+
     const { statemachine, mpdPlugin, commandRouter } = this.#context.volumio;
 
     const stopCurrentServicePlayback = () => {
@@ -219,9 +237,10 @@ export class VolumioStateManager<S extends PlayerStatus> {
         // Tell mpd plugin to ignore changes it detects, so it won't push its own states that could mess up the statemachine.
         mpdPlugin.ignoreUpdate(true);
         return kewToJSPromise(commandRouter.volumioStop());
-      }
-      catch (error) {
-        this.#logger.error(`An error occurred while stopping playback by current service: ${getErrorMessage(error)}`);
+      } catch (error) {
+        this.#logger.error(
+          `An error occurred while stopping playback by current service: ${getErrorMessage(error)}`
+        );
         this.#logger.error('Continuing anyway...');
       }
     };
@@ -261,8 +280,8 @@ export class VolumioStateManager<S extends PlayerStatus> {
       return;
     }
     this.#logger.info('Volatile state unset, stopping playback (if any)...');
-    this.#pushState({ ...EMPTY_STATE, });
-    this.#lastPushedState = null
+    this.#pushState({ ...EMPTY_STATE });
+    this.#lastPushedState = null;
     this.#context.volumio.mpdPlugin.ignoreUpdate(false);
 
     /**
@@ -287,10 +306,12 @@ export class VolumioStateManager<S extends PlayerStatus> {
       return null;
     }
     const currentstate = this.#context.volumio.commandRouter.volumioGetState();
-    return (currentstate !== undefined && currentstate.service !== undefined) ? {
-      service: currentstate.service,
-      isVolatile: currentstate.volatile
-    } : null;
+    return currentstate !== undefined && currentstate.service !== undefined ?
+        {
+          service: currentstate.service,
+          isVolatile: currentstate.volatile
+        }
+      : null;
   }
 
   isCurrentServiceAndVolatile() {
@@ -312,7 +333,10 @@ export class VolumioStateManager<S extends PlayerStatus> {
 
     await this.#setRepeatSingle();
 
-    if (sm.currentRepeat !== oldRepeat || sm.currentRepeatSingleSong !== oldRepeatSingle) {
+    if (
+      sm.currentRepeat !== oldRepeat ||
+      sm.currentRepeatSingleSong !== oldRepeatSingle
+    ) {
       this.#pushState();
     }
   }
@@ -322,7 +346,9 @@ export class VolumioStateManager<S extends PlayerStatus> {
       return;
     }
     const sm = this.#context.volumio.statemachine;
-    return await this.#control.setRepeatSingle(sm.currentRepeat && sm.currentRepeatSingleSong);
+    return await this.#control.setRepeatSingle(
+      sm.currentRepeat && sm.currentRepeatSingleSong
+    );
   }
 
   setRandom(value: boolean) {
@@ -334,7 +360,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
 
     // Do what statemachine does
     sm.currentRandom = value;
-    
+
     if (sm.currentRandom !== oldRandom) {
       this.#pushState();
     }

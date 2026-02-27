@@ -1,6 +1,6 @@
-import EventEmitter from "events";
-import { type PlayerStatus } from "./PlayerStatusProvider";
-import { type TrackInfo } from "./VolumioStateManager";
+import EventEmitter from 'events';
+import { type PlayerStatus } from './PlayerStatusProvider';
+import { type TrackInfo } from './VolumioStateManager';
 
 export abstract class Service<S extends PlayerStatus> extends EventEmitter {
   abstract start(): Promise<void>;
@@ -12,8 +12,8 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
   abstract getStatus(): S | null;
 
   /**
-   * 
-   * @param track 
+   *
+   * @param track
    * @param start Position from which to start playback (seconds)
    */
   abstract play(track: TrackInfo, start?: number): Promise<void>;
@@ -35,32 +35,48 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
   abstract pushState(): void;
 
   /**
-   * 
+   *
    * @param position Position to seek to in seconds
    */
   abstract seek(position: number): Promise<void>;
 
-  emit(eventName: 'close', code: number | null, signal: NodeJS.Signals | null): boolean;
+  emit(
+    eventName: 'close',
+    code: number | null,
+    signal: NodeJS.Signals | null
+  ): boolean;
   emit(eventName: 'status', status: S): boolean;
   emit<K>(eventName: string | symbol, ...args: any[]): boolean {
     return super.emit(eventName, ...args);
   }
 
-  on(eventName: 'close', listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
+  on(
+    eventName: 'close',
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void
+  ): this;
   on(eventName: 'status', listener: (status: S) => void): this;
   on<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(eventName, listener);
   }
 
-  once(eventName: 'close', listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
+  once(
+    eventName: 'close',
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void
+  ): this;
   once(eventName: 'status', listener: (status: S) => void): this;
-  once<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
+  once<K>(
+    eventName: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
     return super.once(eventName, listener);
   }
 
-  off(eventName: 'close', listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
+  off(
+    eventName: 'close',
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void
+  ): this;
   off(eventName: 'status', listener: (status: S) => void): this;
   off<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
-      return super.off(eventName, listener);
+    return super.off(eventName, listener);
   }
 }

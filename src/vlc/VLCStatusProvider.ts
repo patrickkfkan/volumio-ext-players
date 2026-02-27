@@ -1,7 +1,10 @@
 import _ from 'lodash';
 import type * as VLC from 'vlc-client';
 import { VLCHelper } from './VLCHelper';
-import { type PlayerStatus, PlayerStatusProvider } from '../common/PlayerStatusProvider';
+import {
+  type PlayerStatus,
+  PlayerStatusProvider
+} from '../common/PlayerStatusProvider';
 import { type Logger } from '../common/ServiceContext';
 import { getErrorMessage } from '../common/Util';
 
@@ -25,7 +28,6 @@ const EMPTY_STATUS: VLCStatus = {
 };
 
 export class VLCStatusProvider extends PlayerStatusProvider<VLCStatus> {
-
   #options: VLCStatusProviderOptions;
   #logger: Logger;
   #pollTimer: NodeJS.Timeout | null = null;
@@ -57,8 +59,7 @@ export class VLCStatusProvider extends PlayerStatusProvider<VLCStatus> {
         void (async () => {
           try {
             await this.#getAndEmitStatus();
-          }
-          catch (error) {
+          } catch (error) {
             this.#logger.error(`Poll error: ${getErrorMessage(error)}`);
           }
           if (this.#pollingStatus === 'started') {
@@ -66,7 +67,7 @@ export class VLCStatusProvider extends PlayerStatusProvider<VLCStatus> {
           }
         })();
       }, this.#options.pollInterval);
-    }
+    };
     this.#pollingStatus = 'started';
     setPollTimer();
   }
@@ -107,7 +108,8 @@ export class VLCStatusProvider extends PlayerStatusProvider<VLCStatus> {
       !timeDecremented &&
       this.#currentStatus.state === state &&
       state !== 'playing'
-    ) { // stopped or paused
+    ) {
+      // stopped or paused
       return;
     }
 

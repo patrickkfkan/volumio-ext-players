@@ -49,7 +49,7 @@ export interface VolumioState extends ObservedState {
   dbVolume?: number;
   disableVolumeControl?: boolean;
   mute?: boolean;
-  isStreaming?: boolean;
+  stream?: boolean;
   repeat?: boolean;
   repeatSingle?: boolean;
   random?: boolean;
@@ -171,7 +171,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
       ...(observedState || this.getObservedStateFromPlayerStatus(this.#statusProvider.getStatus())),
       service: this.#context.serviceName,
       seek: this.#statusProvider.getStatus().time * 1000,
-      isStreaming: false,
+      stream: false,
       repeat: sm.currentRepeat,
       repeatSingle: sm.currentRepeatSingleSong,
       random: sm.currentRandom,

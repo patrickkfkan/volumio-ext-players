@@ -3,6 +3,7 @@ import { getErrorMessage, kewToJSPromise } from './Util';
 import { type ServiceContext, type Logger } from './ServiceContext';
 import { type PlayerStatus, type PlayerStatusProvider } from './PlayerStatusProvider';
 import { type PlayerControl } from './PlayerControl';
+import { type VolumioContext } from './VolumioContext';
 
 export interface VolumioStateManagerOptions<S extends PlayerStatus> {
   context: ServiceContext;
@@ -73,6 +74,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
   #statusProvider: PlayerStatusProvider<S>;
   #statusListener: (status: S) => void;
   #timeListener: (time: number) => void;
+  #unsetVolatileOnStop: VolumioContext['unsetVolatileOnStop'];
 
   constructor(options: VolumioStateManagerOptions<S>) {
     this.#context = options.context;
@@ -83,6 +85,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
     this.#timeListener = (time) => this.#handlePlayerTimeChange(time);
     this.#statusProvider.on('status', this.#statusListener);
     this.#statusProvider.on('time', this.#timeListener);
+    this.#unsetVolatileOnStop = options.context.volumio?.unsetVolatileOnStop ?? 'always';
   }
 
   async prepareForPlayback(trackInfo: TrackInfo) {
@@ -114,12 +117,20 @@ export class VolumioStateManager<S extends PlayerStatus> {
 
   #handlePlayerStatusChange(status: S) {
     if (status.state === 'stopped') {
-      if (this.#context.volumio) {
-        this.#logger.info('Player status "stopped" - unsetting ourselves as current service...');
+      if (
+        this.#unsetVolatileOnStop === 'always' ||
+        // conrol.isStopping() returns true if stop() was called
+        (this.#unsetVolatileOnStop === 'manual' && this.#control.isStopping())
+      ) {
+        if (this.#context.volumio) {
+          this.#logger.info('Player status "stopped" - unsetting ourselves as current service...');
+        }
+        // "stop" state will be pushed when unsetting volatile state
+        // - see onUnsetVolatile() callback
+        this.unsetVolatile();
+        return;
       }
-      // "stop" state will be pushed when unsetting volatile state
-      // - see onUnsetVolatile() callback
-      this.unsetVolatile();
+      this.#logger.info(`Player status "stopped" - skip unset volatile because unset condition is "${this.#unsetVolatileOnStop}"`);
       return;
     }
     if (this.#control.isStopping()) {

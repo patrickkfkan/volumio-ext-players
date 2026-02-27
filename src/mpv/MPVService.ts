@@ -22,11 +22,10 @@ export interface MPVServiceContext extends ServiceContext {
 }
 
 export type UnvalidatedMPVServiceContext = Omit<MPVServiceContext, 'volumio'> & {
-  volumio?: {
+  volumio?: Omit<VolumioContext, 'commandRouter' | 'statemachine' | 'mpdPlugin'> & {
     commandRouter: unknown;
     statemachine: unknown;
     mpdPlugin: unknown;
-    transformStateBeforePush?: VolumioContext['transformStateBeforePush'];
   }
 };
 

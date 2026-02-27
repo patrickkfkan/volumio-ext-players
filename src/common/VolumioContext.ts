@@ -45,6 +45,15 @@ export interface VolumioContext {
   statemachine: StateMachine;
   mpdPlugin: MPDPlugin;
   transformStateBeforePush?: (state: VolumioState) => VolumioState;
+  /**
+   * Whether to unset ourselves from volatile state when player stops.
+   * - `always`: always unset when player stops.
+   * - `never`: never unset.
+   * - 'manual': only unset when stop() was called, If player stops because
+   *    playback has finished, this will not trigger unset.
+   * Default: `always`
+   */
+  unsetVolatileOnStop?: 'always' | 'never' | 'manual';
 }
 
 export function validateVolumioContext(value: any): value is VolumioContext {

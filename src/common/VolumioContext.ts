@@ -40,11 +40,21 @@ export interface MPDPlugin {
   ignoreUpdate: (value: boolean) => void;
 }
 
+export interface VolumioStateTranformer {
+  transformStateBeforePush?: (state: VolumioState) => VolumioState;
+  /**
+   * 
+   * @param playerTime Player seek position in milliseconds
+   * @returns 
+   */
+  modifyVolatileSeekBeforeSet?: (playerTime: number) => number;
+}
+
 export interface VolumioContext {
   commandRouter: CommandRouter;
   statemachine: StateMachine;
   mpdPlugin: MPDPlugin;
-  transformStateBeforePush?: (state: VolumioState) => VolumioState;
+  stateTransformer?: VolumioStateTranformer;
   /**
    * Whether to unset ourselves from volatile state when player stops.
    * - `always`: always unset when player stops.

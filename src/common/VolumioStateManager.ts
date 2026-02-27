@@ -114,7 +114,11 @@ export class VolumioStateManager<S extends PlayerStatus> {
     ) {
       return;
     }
-    this.#context.volumio.statemachine.volatileState.seek = time * 1000;
+    let seek = time * 1000;
+    if (this.#context.volumio.stateTransformer?.modifyVolatileSeekBeforeSet) {
+      seek = this.#context.volumio.stateTransformer.modifyVolatileSeekBeforeSet(seek);
+    }
+    this.#context.volumio.statemachine.volatileState.seek = seek;
   }
 
   #handlePlayerStatusChange(status: S) {
@@ -186,8 +190,8 @@ export class VolumioStateManager<S extends PlayerStatus> {
       disableVolumeControl: sm.currentDisableVolumeControl
     };
 
-    if (this.#context.volumio.transformStateBeforePush) {
-      state = this.#context.volumio.transformStateBeforePush(state);
+    if (this.#context.volumio.stateTransformer?.transformStateBeforePush) {
+      state = this.#context.volumio.stateTransformer.transformStateBeforePush(state);
     }
 
     if (!_.isEqual(state, this.#lastPushedState)) {

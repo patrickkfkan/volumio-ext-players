@@ -1,4 +1,8 @@
-import { type ChildProcess, spawn } from 'child_process';
+import {
+  type ChildProcess,
+  spawn,
+  type SpawnOptionsWithoutStdio
+} from 'child_process';
 import { randomUUID } from 'crypto';
 import { EOL } from 'os';
 import portfinder from 'portfinder';
@@ -19,6 +23,16 @@ import { Service } from '../common/Service';
 
 export interface VLCServiceContext extends ServiceContext {
   vlcArgs?: string[];
+  spawnOptions?: Omit<SpawnOptionsWithoutStdio, 'uid' | 'gid'> & {
+    /**
+     * Set to `null` for default uid
+     */
+    uid?: number | null;
+    /**
+     * Set to `null` for default gid
+     */
+    gid?: number | null;
+  };
 }
 
 export class VLCService extends Service<VLCStatus> {
@@ -109,10 +123,21 @@ export class VLCService extends Service<VLCStatus> {
         } else {
           sArgs.push('--http-password', pw);
         }
+        const uidOpt = this.#context.spawnOptions?.uid;
+        const uid =
+          typeof uidOpt === 'number' ? uidOpt
+          : uidOpt === null ? undefined
+          : 1000;
+        const gidOpt = this.#context.spawnOptions?.gid;
+        const gid =
+          typeof gidOpt === 'number' ? gidOpt
+          : gidOpt === null ? undefined
+          : 1000;
         const s = spawn('cvlc', sArgs, {
-          uid: 1000,
-          gid: 1000,
-          shell: true
+          ...this.#context.spawnOptions,
+          uid,
+          gid,
+          shell: this.#context.spawnOptions?.shell ?? true
         });
         let lastError: Error | null = null;
         const preStartErrors: string[] = [];

@@ -1,4 +1,9 @@
-import { type ChildProcess, execSync, spawn } from 'child_process';
+import {
+  type ChildProcess,
+  execSync,
+  spawn,
+  type SpawnOptionsWithoutStdio
+} from 'child_process';
 import { randomUUID } from 'crypto';
 import { EOL } from 'os';
 import pidtree from 'pidtree';
@@ -25,6 +30,16 @@ import { Service } from '../common/Service';
 
 export interface MPVServiceContext extends ServiceContext {
   mpvArgs?: string[];
+  spawnOptions?: Omit<SpawnOptionsWithoutStdio, 'uid' | 'gid'> & {
+    /**
+     * Set to `null` for default uid
+     */
+    uid?: number | null;
+    /**
+     * Set to `null` for default gid
+     */
+    gid?: number | null;
+  };
 }
 
 export type UnvalidatedMPVServiceContext = Omit<
@@ -142,10 +157,21 @@ export class MPVService extends Service<MPVStatus> {
       if (!customArgs || !customArgs['audio-device']) {
         sArgs.push(`--audio-device="alsa/volumio"`);
       }
+      const uidOpt = this.#context.spawnOptions?.uid;
+      const uid =
+        typeof uidOpt === 'number' ? uidOpt
+        : uidOpt === null ? undefined
+        : 1000;
+      const gidOpt = this.#context.spawnOptions?.gid;
+      const gid =
+        typeof gidOpt === 'number' ? gidOpt
+        : gidOpt === null ? undefined
+        : 1000;
       const s = spawn('mpv', sArgs, {
-        uid: 1000,
-        gid: 1000,
-        shell: true
+        ...this.#context.spawnOptions,
+        uid,
+        gid,
+        shell: this.#context.spawnOptions?.shell ?? true
       });
       let lastError: Error | null = null;
       const preStartErrors: string[] = [];

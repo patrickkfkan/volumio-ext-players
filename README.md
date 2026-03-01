@@ -4,22 +4,28 @@ Start, control and monitor [vlc](https://www.videolan.org/) or [mpv](https://mpv
 
 ### Background
 
-Created for Volumio [SoundCloud plugin](https://github.com/patrickkfkan/volumio-soundcloud) to provide support for HLS+AAC and HLS+Opus streams. Originally, I hoped I could use [MusicPlayerDaemon](https://www.musicpd.org/) (MPD) to handle these streams, because it's already available and decently integrated with Volumio. But:
-- HLS+AAC plays, but seeking results in silence and renders MPD unresponsive.
-- HLS+Opus won't play at all. This is due to FFmpeg rejecting non-standard HLS stream segments. This is solvable by passing `extension_picky=0`, `allowed_extensions=ALL` and `allowed_segment_extensions=ALL` to FFmpeg, but there is no option in MPD configuration to do this.
+This project, originally developed for the Volumio [SoundCloud plugin](https://github.com/patrickkfkan/volumio-soundcloud), now aims to provide a versatile toolset for any plugins that may find it beneficial.
 
-After a bit of testing, I found that:
-- VLC handles HLS+AAC streams fine with seeking possible; but it fails with HLS+Opus streams (same FFmpeg issue).
-- mpv can handle HLS+Opus streams after passing the relevant FFmpeg options.
+<details>
+  <summary><code>How this project started</code></summary>
 
-To use these players in Volumio, the SoundCloud plugin needs to set itself as a "volatile" plugin. This means it is responsible for pretty much everything that happens before, during and after playback, including:
-- running, controlling and monitoring the player;
-- providing state updates to Volumio;
-- handling commands from Volumio, like "next", "previous", "pause", "repeat" and "random";
-- if appropriate, moving on to the next track when current playback ends.
+  Created for Volumio [SoundCloud plugin](https://github.com/patrickkfkan/volumio-soundcloud) to provide support for HLS+AAC and HLS+Opus streams. Originally, I hoped I could use [MusicPlayerDaemon](https://www.musicpd.org/) (MPD) to handle these streams, because it's already available and decently integrated with Volumio. But:
+  - HLS+AAC plays, but seeking results in silence and renders MPD unresponsive.
+  - HLS+Opus won't play at all. This is due to FFmpeg rejecting non-standard HLS stream segments. This is solvable by passing `extension_picky=0`, `allowed_extensions=ALL` and `allowed_segment_extensions=ALL` to FFmpeg, but there is no option in MPD configuration to do this.
 
-I could do all this within the plugin, or come up with a separate reusable module. The latter makes more sense, hence this project.
+  After a bit of testing, I found that:
+  - VLC handles HLS+AAC streams fine with seeking possible; but it fails with HLS+Opus streams (same FFmpeg issue).
+  - mpv can handle HLS+Opus streams after passing the relevant FFmpeg options.
 
+  To use these players in Volumio, the SoundCloud plugin needs to set itself as a "volatile" plugin. This means it is responsible for pretty much everything that happens before, during and after playback, including:
+  - running, controlling and monitoring the player;
+  - providing state updates to Volumio;
+  - handling commands from Volumio, like "next", "previous", "pause", "repeat" and "random";
+  - if appropriate, moving on to the next track when current playback ends.
+
+  I could do all this within the plugin, or come up with a separate reusable module. The latter makes more sense, hence this project.
+
+</details>
 
 ### Usage
 
@@ -54,12 +60,30 @@ const volumioCtx = {
   commandRouter: sc.volumioCoreCommand,
   mpdPlugin: sc.getMpdPlugin(),
   statemachine: sc.getStateMachine()
-  transformStateBeforePush: (state) => { // Optional
-    // Modify state
-    const transformedState = ...;
-    // Volumio gets the transformed state
-    return transformedState;
+
+  // Optional - modify state before sending it to Volumio
+  stateTransformer: {
+    transformStateBeforePush(state) {
+      // Modify state
+      const transformed = {
+        ...state,
+        title: 'Custom title'
+      };
+      // Return it
+      return transformed;
+    },
+
+    modifyVolatileSeekBeforeSet(playerTime) {
+      return playerTime - 10;
+    }
   }
+
+  // When player stops, should the service automatically disengage (unset volatile)?
+  // Values:
+  // - `always` (default)
+  // - `never`
+  // - `manual`: disengage when player stops as a result of stop() being called.
+  unsetVolatileOnStop: 'manual'
 };
 
 // Start VLC
@@ -161,9 +185,23 @@ vlc.on('close', (code, signal) => {
 });
 ```
 
+You can also manually send a state update to Volumio:
+
+```
+vlc.pushState();
+```
+
 Note the use of `await` in the above examples. Since Volumio still uses [kew](https://github.com/Medium/kew), make sure you wrap your async calls into kew-compatible Promises.
 
 ### Changelog
+
+v1.1.0
+- `play()`: add `start` option to indicate position from which to start playback.
+- Add `pushState()` to allow manual dispatch of Volumio state.
+- Add `unsetVolatileOnStop` option to specify condition on which to unset volatile state.
+- Add `stateTransformer` option for modifying state before sending it to Volumio.
+- Add spawn options
+- mpv: resolve `loadfile` command differences across different versions.
 
 v1.0.0
 - Initial release

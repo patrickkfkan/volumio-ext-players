@@ -207,6 +207,9 @@ Note the use of `await` in the above examples. Since Volumio still uses [kew](ht
 
 ### Changelog
 
+v1.2.0
+- Add `setVolatile` and `unsetVolatile` events.
+
 v1.1.0
 - `play()`: add `start` option to indicate position from which to start playback.
 - Add `pushState()` to allow manual dispatch of Volumio state.

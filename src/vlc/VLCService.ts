@@ -46,6 +46,8 @@ export class VLCService extends Service<VLCStatus> {
   #logger: Logger;
   #client: VLC.Client | null = null;
   #statusEventHandler: (status: VLCStatus) => void;
+  #setVolatileEventHandler: () => void;
+  #unsetVolatileEventHandler: () => void;
 
   constructor(context: VLCServiceContext) {
     super();
@@ -71,6 +73,10 @@ export class VLCService extends Service<VLCStatus> {
       };
     }
     this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
+    this.#setVolatileEventHandler = () =>
+      this.#forwardVolatileEvent('setVolatile');
+    this.#unsetVolatileEventHandler = () =>
+      this.#forwardVolatileEvent('unsetVolatile');
   }
 
   #wrapLogger() {
@@ -181,8 +187,14 @@ export class VLCService extends Service<VLCStatus> {
               logger: this.#logger
             });
           })
-          .then(() =>
-            this.#statusProvider!.on('status', this.#statusEventHandler)
+          .then(
+            () =>
+              this.#statusProvider!.on('status', this.#statusEventHandler) &&
+              this.#manager!.on('setVolatile', this.#setVolatileEventHandler) &&
+              this.#manager!.on(
+                'unsetVolatile',
+                this.#unsetVolatileEventHandler
+              )
           )
           .then(() => this.#statusProvider!.startPolling())
           .then(() => resolve())
@@ -284,6 +296,10 @@ export class VLCService extends Service<VLCStatus> {
     this.emit('status', status);
   }
 
+  #forwardVolatileEvent(eventName: 'setVolatile' | 'unsetVolatile') {
+    this.emit(eventName);
+  }
+
   async quit() {
     if (this.#quitPromise) {
       return this.#quitPromise;
@@ -359,6 +375,8 @@ export class VLCService extends Service<VLCStatus> {
 
   #reset() {
     if (this.#manager) {
+      this.#manager.off('setVolatile', this.#setVolatileEventHandler);
+      this.#manager.off('unsetVolatile', this.#unsetVolatileEventHandler);
       this.#manager.dispose();
       this.#manager = null;
     }

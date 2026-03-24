@@ -40,6 +40,7 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
    */
   abstract seek(position: number): Promise<void>;
 
+  emit(eventName: 'setVolatile' | 'unsetVolatile'): boolean;
   emit(
     eventName: 'close',
     code: number | null,
@@ -50,6 +51,7 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
     return super.emit(eventName, ...args);
   }
 
+  on(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
   on(
     eventName: 'close',
     listener: (code: number | null, signal: NodeJS.Signals | null) => void
@@ -59,6 +61,7 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
     return super.on(eventName, listener);
   }
 
+  once(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
   once(
     eventName: 'close',
     listener: (code: number | null, signal: NodeJS.Signals | null) => void
@@ -71,6 +74,7 @@ export abstract class Service<S extends PlayerStatus> extends EventEmitter {
     return super.once(eventName, listener);
   }
 
+  off(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
   off(
     eventName: 'close',
     listener: (code: number | null, signal: NodeJS.Signals | null) => void

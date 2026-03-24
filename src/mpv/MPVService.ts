@@ -71,6 +71,8 @@ export class MPVService extends Service<MPVStatus> {
 
   #incomingSocketDataHandler: (data: Buffer) => void;
   #statusEventHandler: (status: MPVStatus) => void;
+  #setVolatileEventHandler: () => void;
+  #unsetVolatileEventHandler: () => void;
 
   constructor(context: UnvalidatedMPVServiceContext) {
     super();
@@ -98,6 +100,10 @@ export class MPVService extends Service<MPVStatus> {
     this.#incomingSocketDataHandler = (data) =>
       this.#handleIncomingSocketData(data);
     this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
+    this.#setVolatileEventHandler = () =>
+      this.#forwardVolatileEvent('setVolatile');
+    this.#unsetVolatileEventHandler = () =>
+      this.#forwardVolatileEvent('unsetVolatile');
   }
 
   #wrapLogger() {
@@ -220,8 +226,11 @@ export class MPVService extends Service<MPVStatus> {
         .then(() => {
           this.#socket!.on('data', this.#incomingSocketDataHandler);
         })
-        .then(() =>
-          this.#statusProvider!.on('status', this.#statusEventHandler)
+        .then(
+          () =>
+            this.#statusProvider!.on('status', this.#statusEventHandler) &&
+            this.#manager!.on('setVolatile', this.#setVolatileEventHandler) &&
+            this.#manager!.on('unsetVolatile', this.#unsetVolatileEventHandler)
         )
         .then(() => this.#statusProvider!.start())
         .then(() => resolve())
@@ -295,6 +304,10 @@ export class MPVService extends Service<MPVStatus> {
 
   #forwardStatusEvent(status: MPVStatus) {
     this.emit('status', status);
+  }
+
+  #forwardVolatileEvent(eventName: 'setVolatile' | 'unsetVolatile') {
+    this.emit(eventName);
   }
 
   #createSocket(socketPath: string) {
@@ -436,6 +449,8 @@ export class MPVService extends Service<MPVStatus> {
 
   async #reset() {
     if (this.#manager) {
+      this.#manager.off('setVolatile', this.#setVolatileEventHandler);
+      this.#manager.off('unsetVolatile', this.#unsetVolatileEventHandler);
       this.#manager.dispose();
       this.#manager = null;
     }

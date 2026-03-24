@@ -7,6 +7,7 @@ import {
 } from './PlayerStatusProvider';
 import { type PlayerControl } from './PlayerControl';
 import { type VolumioContext } from './VolumioContext';
+import { EventEmitter } from 'events';
 
 export interface VolumioStateManagerOptions<S extends PlayerStatus> {
   context: ServiceContext;
@@ -66,7 +67,7 @@ const EMPTY_STATE: Omit<VolumioState, 'service'> = {
   duration: 0
 } as const;
 
-export class VolumioStateManager<S extends PlayerStatus> {
+export class VolumioStateManager<S extends PlayerStatus> extends EventEmitter {
   #context: ServiceContext;
   #logger: Logger;
   #suppliedTrackInfo: TrackInfo | null = null;
@@ -80,6 +81,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
   #lastPushedState: VolumioState | null = null;
 
   constructor(options: VolumioStateManagerOptions<S>) {
+    super();
     this.#context = options.context;
     this.#logger = options.logger;
     this.#control = options.control;
@@ -265,6 +267,7 @@ export class VolumioStateManager<S extends PlayerStatus> {
       callback: this.#volatileCallback
     });
     statemachine.setConsumeUpdateService(undefined);
+    this.emit('setVolatile');
   }
 
   unsetVolatile() {
@@ -297,8 +300,13 @@ export class VolumioStateManager<S extends PlayerStatus> {
      * No solution I can think of, or am I doing this the wrong way?
      */
     if (this.#statusProvider.getStatus().state !== 'stopped') {
-      void this.#control.stop();
+      this.#control.stop().catch((error: unknown) => {
+        this.#logger.error(
+          `Error stopping player on unset volatile: ${getErrorMessage(error)}`
+        );
+      });
     }
+    this.emit('unsetVolatile');
   }
 
   #getCurrentService() {
@@ -364,5 +372,28 @@ export class VolumioStateManager<S extends PlayerStatus> {
     if (sm.currentRandom !== oldRandom) {
       this.#pushState();
     }
+  }
+
+  emit(eventName: 'setVolatile' | 'unsetVolatile'): boolean;
+  emit<K>(eventName: string | symbol, ...args: any[]): boolean {
+    return super.emit(eventName, ...args);
+  }
+
+  on(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  on<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(eventName, listener);
+  }
+
+  once(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  once<K>(
+    eventName: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
+    return super.once(eventName, listener);
+  }
+
+  off(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  off<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
+    return super.off(eventName, listener);
   }
 }

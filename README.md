@@ -185,6 +185,18 @@ vlc.on('close', (code, signal) => {
 });
 ```
 
+vlc.on('setVolatile', () => {
+  // Handle event where the service utilizing vlc is set
+  // as the active one. 
+  ...
+});
+
+vlc.on('unsetVolatile', () => {
+  // Handle event where the service utilizing vlc is unset as the
+  // active one.
+  ...
+});
+
 You can also manually send a state update to Volumio:
 
 ```

@@ -15,6 +15,7 @@ export abstract class PlayerControl<S extends PlayerStatus> {
   #statusProvider: PlayerStatusProvider<S>;
   #previousTimer: NodeJS.Timeout | null = null;
   #isStopping = false;
+  #isProceedingToNext = false;
 
   constructor(options: PlayerControlOptions<S>) {
     this.#volumio = options.volumio;
@@ -94,6 +95,10 @@ export abstract class PlayerControl<S extends PlayerStatus> {
     return this.#isStopping;
   }
 
+  isProceedingToNext() {
+    return this.#isProceedingToNext;
+  }
+
   protected clearPreviousTimer() {
     if (this.#previousTimer) {
       clearTimeout(this.#previousTimer);
@@ -137,11 +142,16 @@ export abstract class PlayerControl<S extends PlayerStatus> {
     if (!this.#volumio) {
       return;
     }
+    this.#isProceedingToNext = true;
     // Do what statemachine does
-    const sm = this.#volumio.statemachine;
-    await this.stop();
-    sm.currentPosition = sm.getNextIndex();
-    await kewToJSPromise(sm.play());
-    await kewToJSPromise(sm.updateTrackBlock());
+    try {
+      const sm = this.#volumio.statemachine;
+      await this.stop();
+      sm.currentPosition = sm.getNextIndex();
+      await kewToJSPromise(sm.play());
+      await kewToJSPromise(sm.updateTrackBlock());
+    } finally {
+      this.#isProceedingToNext = false;
+    }
   }
 }

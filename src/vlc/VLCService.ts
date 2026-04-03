@@ -11,6 +11,7 @@ import * as VLC from 'vlc-client';
 import { type ServiceContext, type Logger } from '../common/ServiceContext';
 import {
   type TrackInfo,
+  type UnsetVolatileInfo,
   VolumioStateManager
 } from '../common/VolumioStateManager';
 import { type VLCStatus, VLCStatusProvider } from './VLCStatusProvider';
@@ -47,7 +48,7 @@ export class VLCService extends Service<VLCStatus> {
   #client: VLC.Client | null = null;
   #statusEventHandler: (status: VLCStatus) => void;
   #setVolatileEventHandler: () => void;
-  #unsetVolatileEventHandler: () => void;
+  #unsetVolatileEventHandler: (info: UnsetVolatileInfo) => void;
 
   constructor(context: VLCServiceContext) {
     super();
@@ -72,11 +73,11 @@ export class VLCService extends Service<VLCStatus> {
         volumio: undefined
       };
     }
-    this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
+    this.#statusEventHandler = (status) => this.forwardStatusEvent(status);
     this.#setVolatileEventHandler = () =>
-      this.#forwardVolatileEvent('setVolatile');
-    this.#unsetVolatileEventHandler = () =>
-      this.#forwardVolatileEvent('unsetVolatile');
+      this.forwardVolatileEvent('setVolatile');
+    this.#unsetVolatileEventHandler = (info) =>
+      this.forwardVolatileEvent('unsetVolatile', info);
   }
 
   #wrapLogger() {
@@ -290,14 +291,6 @@ export class VLCService extends Service<VLCStatus> {
     return new Promise<void>((resolve, reject) => {
       void check(resolve, reject);
     });
-  }
-
-  #forwardStatusEvent(status: VLCStatus) {
-    this.emit('status', status);
-  }
-
-  #forwardVolatileEvent(eventName: 'setVolatile' | 'unsetVolatile') {
-    this.emit(eventName);
   }
 
   async quit() {

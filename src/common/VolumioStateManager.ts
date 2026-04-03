@@ -59,6 +59,21 @@ export interface VolumioState extends ObservedState {
   random?: boolean;
 }
 
+export interface UnsetVolatileInfo {
+  /**
+   * Boolean indicating whether the stop() method was called to trigger the
+   * unsetVolatile event, or if it was triggered by some other means (e.g.
+   * another service taking over or stop occurring naturally as a result of
+   * playback reaching the end of track).
+   */
+  stopCalled: boolean;
+  /**
+   * Boolean indicating whether the next() method was called. As part of
+   * the next() process, stop() will be called, thereby triggering this event.
+   */
+  nextCalled: boolean;
+}
+
 const EMPTY_STATE: Omit<VolumioState, 'service'> = {
   status: 'stop',
   albumart: '/albumart',
@@ -306,7 +321,10 @@ export class VolumioStateManager<S extends PlayerStatus> extends EventEmitter {
         );
       });
     }
-    this.emit('unsetVolatile');
+    this.emit('unsetVolatile', {
+      stopCalled: this.#control.isStopping(),
+      nextCalled: this.#control.isProceedingToNext()
+    });
   }
 
   #getCurrentService() {
@@ -374,17 +392,26 @@ export class VolumioStateManager<S extends PlayerStatus> extends EventEmitter {
     }
   }
 
-  emit(eventName: 'setVolatile' | 'unsetVolatile'): boolean;
+  emit(eventName: 'setVolatile'): boolean;
+  emit(eventName: 'unsetVolatile', info: UnsetVolatileInfo): boolean;
   emit<K>(eventName: string | symbol, ...args: any[]): boolean {
     return super.emit(eventName, ...args);
   }
 
-  on(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  on(eventName: 'setVolatile', listener: () => void): this;
+  on(
+    eventName: 'unsetVolatile',
+    listener: (info: UnsetVolatileInfo) => void
+  ): this;
   on<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(eventName, listener);
   }
 
-  once(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  once(eventName: 'setVolatile', listener: () => void): this;
+  once(
+    eventName: 'unsetVolatile',
+    listener: (info: UnsetVolatileInfo) => void
+  ): this;
   once<K>(
     eventName: string | symbol,
     listener: (...args: any[]) => void
@@ -392,7 +419,11 @@ export class VolumioStateManager<S extends PlayerStatus> extends EventEmitter {
     return super.once(eventName, listener);
   }
 
-  off(eventName: 'setVolatile' | 'unsetVolatile', listener: () => void): this;
+  off(eventName: 'setVolatile', listener: () => void): this;
+  off(
+    eventName: 'unsetVolatile',
+    listener: (info: UnsetVolatileInfo) => void
+  ): this;
   off<K>(eventName: string | symbol, listener: (...args: any[]) => void): this {
     return super.off(eventName, listener);
   }

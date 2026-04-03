@@ -20,6 +20,7 @@ import {
 import { type ServiceContext, type Logger } from '../common/ServiceContext';
 import {
   type TrackInfo,
+  type UnsetVolatileInfo as UnsetVolatileInfo,
   VolumioStateManager
 } from '../common/VolumioStateManager';
 import { MPVHelper } from './MPVHelper';
@@ -72,7 +73,7 @@ export class MPVService extends Service<MPVStatus> {
   #incomingSocketDataHandler: (data: Buffer) => void;
   #statusEventHandler: (status: MPVStatus) => void;
   #setVolatileEventHandler: () => void;
-  #unsetVolatileEventHandler: () => void;
+  #unsetVolatileEventHandler: (info: UnsetVolatileInfo) => void;
 
   constructor(context: UnvalidatedMPVServiceContext) {
     super();
@@ -99,11 +100,11 @@ export class MPVService extends Service<MPVStatus> {
     }
     this.#incomingSocketDataHandler = (data) =>
       this.#handleIncomingSocketData(data);
-    this.#statusEventHandler = (status) => this.#forwardStatusEvent(status);
+    this.#statusEventHandler = (status) => this.forwardStatusEvent(status);
     this.#setVolatileEventHandler = () =>
-      this.#forwardVolatileEvent('setVolatile');
-    this.#unsetVolatileEventHandler = () =>
-      this.#forwardVolatileEvent('unsetVolatile');
+      this.forwardVolatileEvent('setVolatile');
+    this.#unsetVolatileEventHandler = (info) =>
+      this.forwardVolatileEvent('unsetVolatile', info);
   }
 
   #wrapLogger() {
@@ -300,14 +301,6 @@ export class MPVService extends Service<MPVStatus> {
     }
     this.#command?.processParsedIncomingData(parsed);
     this.#statusProvider?.processParsedIncomingData(parsed);
-  }
-
-  #forwardStatusEvent(status: MPVStatus) {
-    this.emit('status', status);
-  }
-
-  #forwardVolatileEvent(eventName: 'setVolatile' | 'unsetVolatile') {
-    this.emit(eventName);
   }
 
   #createSocket(socketPath: string) {

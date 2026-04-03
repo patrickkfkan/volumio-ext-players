@@ -207,6 +207,10 @@ Note the use of `await` in the above examples. Since Volumio still uses [kew](ht
 
 ### Changelog
 
+v1.3.0
+- Add info to `unsetVolatile` event.
+- Support `stream` property in track info passed to `play()`.
+
 v1.2.0
 - Add `setVolatile` and `unsetVolatile` events.
 

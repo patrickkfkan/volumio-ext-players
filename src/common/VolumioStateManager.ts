@@ -29,6 +29,7 @@ export interface TrackInfo {
   bitdepth?: string;
   bitrate?: string;
   channels?: number;
+  stream?: boolean;
 }
 
 export interface ObservedState {
@@ -207,11 +208,13 @@ export class VolumioStateManager<S extends PlayerStatus> extends EventEmitter {
       );
     }
     const sm = this.#context.volumio.statemachine;
+    const stream = this.#suppliedTrackInfo?.stream ?? false;
     let state: VolumioState = {
       ...observedState,
       service: this.#context.serviceName,
-      seek: this.#statusProvider.getStatus().time * 1000,
-      stream: false,
+      seek: stream ? 0 : this.#statusProvider.getStatus().time * 1000,
+      duration: stream ? 0 : observedState.duration,
+      stream,
       repeat: sm.currentRepeat,
       repeatSingle: sm.currentRepeatSingleSong,
       random: sm.currentRandom,
